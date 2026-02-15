@@ -1,0 +1,39 @@
+name: Update Rowing Data
+
+on:
+  schedule:
+    # Run every hour at minute 5 (to allow API data to settle)
+    - cron: '5 * * * *'
+  workflow_dispatch: # Allows you to manually click "Run" to test
+
+jobs:
+  refresh-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+
+    - name: Install Dependencies
+      run: pip install -r requirements.txt
+
+    - name: Fetch Data
+      env:
+        KNMI_API_KEY: ${{ secrets.KNMI_API_KEY }}
+      run: python fetch_data.py
+
+    - name: Commit and Push
+      run: |
+        git config --global user.name "RowingBot"
+        git config --global user.email "bot@noreply.github.com"
+        git add data.json
+        # Only commit if data changed
+        git diff --quiet && git diff --staged --quiet || (git commit -m "Update rowing data" && git push)
