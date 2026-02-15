@@ -1,264 +1,258 @@
 import requests
+import pandas as pd
 import json
 import os
 from datetime import datetime, timedelta
 import pytz
-import xarray as xr
-import io
+from io import StringIO
 
 # --- CONFIGURATION ---
-# Nijmegen Coordinates (approx)
-LAT = 51.84
-LON = 5.86
+# Nijmegen coordinates
+LAT = 51.847683
+LON = 5.862825
 
-# Windfinder-ish Color Logic (Knots)
-# Returns integer code: 0=Purple, 1=Blue, 2=Cyan, 3=Green, 4=DarkGreen, 5=Yellow, 6=Orange, 7=Red
+# RWS Settings
+RWS_CSV_URL = "https://waterinfo.rws.nl/api/chart/get?locationCodes=Lobith(LOBI)&values=-48,48&mapType=waterhoogte"
+
+# Open-Meteo Settings (KNMI HARMONIE AROME)
+OPEN_METEO_URL = f"https://api.open-meteo.com/v1/forecast?latitude={LAT}&longitude={LON}&hourly=visibility,precipitation,weather_code,wind_speed_10m&models=knmi_harmonie_arome_netherlands&timezone=auto&forecast_days=3"
+
+# --- HELPER FUNCTIONS ---
 def get_wind_color(knots):
-    if knots < 6: return 0    # Purple
-    if knots < 13: return 1   # Blue
-    if knots < 25: return 2   # Cyan
-    if knots < 35: return 3   # Green
-    if knots < 43: return 4   # Dark Green
-    if knots < 50: return 5   # Yellow
-    if knots < 60: return 6   # Orange
-    return 7                  # Red
+    """Convert wind speed to color code (0-7)"""
+    if knots < 6: return 0     # Purple
+    if knots < 13: return 1    # Blue
+    if knots < 25: return 2    # Cyan
+    if knots < 35: return 3    # Green
+    if knots < 43: return 4    # Dark Green
+    if knots < 50: return 5    # Yellow
+    if knots < 60: return 6    # Orange
+    return 7                   # Red
 
-# Cloud Cover (0-1 or 0-8 scale) to Icon ID
-# 0=Clear, 1=Partly, 2=Cloudy, 3=Overcast
-def get_sun_icon(cloud_fraction_0_1):
-    if cloud_fraction_0_1 < 0.2: return 0
-    if cloud_fraction_0_1 < 0.6: return 1
-    if cloud_fraction_0_1 < 0.9: return 2
-    return 3
+def get_sun_score(weather_code):
+    """
+    Convert WMO weather code to sun score (0-10)
+    WMO Codes: 0=clear, 1-3=partly cloudy, 45-48=fog, 51-67=rain, 71-86=snow, 95+=thunder
+    """
+    if weather_code is None:
+        return 5
+    
+    wc = int(weather_code)
+    
+    # Clear sky
+    if wc == 0:
+        return 10
+    # Mainly clear
+    elif wc == 1:
+        return 9
+    # Partly cloudy
+    elif wc == 2:
+        return 7
+    # Overcast
+    elif wc == 3:
+        return 4
+    # Fog
+    elif 45 <= wc <= 48:
+        return 2
+    # Rain/Snow/Thunder (cloudy)
+    elif wc >= 51:
+        return 1
+    
+    return 5  # Default
 
-# Visibility (meters) to Fog Scale 0-5
-# 0 = No Fog (>10km), 5 = Thick Fog (<200m)
-def get_fog_score(visibility_m):
-    if visibility_m > 10000: return 0
-    if visibility_m > 4000: return 1
-    if visibility_m > 2000: return 2
-    if visibility_m > 1000: return 3
-    if visibility_m > 200: return 4
-    return 5
+def get_fog_score(vis_m):
+    """Convert visibility (meters) to fog score (0-10)"""
+    if vis_m is None:
+        return 5
+    if vis_m >= 10000:
+        return 10
+    if vis_m >= 4000:
+        return 8
+    if vis_m >= 2000:
+        return 6
+    if vis_m >= 1000:
+        return 4
+    if vis_m >= 200:
+        return 2
+    return 0
 
-def mps_to_knots(mps):
-    return mps * 1.94384
+# --- RWS FETCHER ---
+def fetch_rws_data(now_dt):
+    """Fetch water level data from Rijkswaterstaat Lobith station"""
+    print(f"--- Fetching RWS Data (Lobith) ---")
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (RowingMonitor/1.0)", 
+            "Accept": "text/csv"
+        }
+        r = requests.get(RWS_CSV_URL, headers=headers, timeout=15)
+        r.raise_for_status()
+        
+        df = pd.read_csv(StringIO(r.text), sep=';')
+        df['datetime'] = pd.to_datetime(
+            df['Datum'] + ' ' + df['Tijd (NL tijd)'], 
+            format='%d-%m-%Y %H:%M'
+        )
+        tz = pytz.timezone('Europe/Amsterdam')
+        df['datetime'] = df['datetime'].dt.tz_localize(tz, ambiguous='NaT', nonexistent='NaT')
+        
+        # 1. Current Water Level
+        measure_col = [c for c in df.columns if "Waterhoogte Oppervlaktewater" in c and "verwacht" not in c][0]
+        df = df.sort_values('datetime')
+        past_df = df[(df['datetime'] <= now_dt) & (df[measure_col].notna())]
+        water_now = int(past_df.iloc[-1][measure_col]) if not past_df.empty else 0
+
+        # 2. Tomorrow 09:00 Prediction
+        predict_col = [c for c in df.columns if "Waterhoogte verwacht" in c][0]
+        target_tmr = now_dt.replace(hour=9, minute=0, second=0, microsecond=0) + timedelta(days=1)
+        df['diff'] = (df['datetime'] - target_tmr).abs()
+        pred_df = df[df[predict_col].notna()]
+        
+        water_tmr = 0
+        if not pred_df.empty:
+            water_tmr = int(pred_df.loc[pred_df['diff'].idxmin()][predict_col])
+
+        print(f"✓ RWS Success: Now={water_now}cm, Tmr@9={water_tmr}cm")
+        return water_now, water_tmr
+        
+    except Exception as e:
+        print(f"✗ RWS Error: {e}")
+        return 0, 0
+
+# --- OPEN-METEO FETCHER ---
+def fetch_weather_data(now_dt):
+    """Fetch weather forecast from Open-Meteo (KNMI HARMONIE AROME)"""
+    print(f"--- Fetching Weather Data (Open-Meteo / KNMI HARMONIE) ---")
+    
+    try:
+        r = requests.get(OPEN_METEO_URL, timeout=15)
+        r.raise_for_status()
+        
+        data = r.json()
+        hourly = data['hourly']
+        
+        # Parse time array to datetime objects
+        times = [datetime.fromisoformat(t) for t in hourly['time']]
+        
+        # Find index closest to current time
+        current_idx = None
+        min_diff = timedelta(hours=999)
+        for i, t in enumerate(times):
+            diff = abs(t - now_dt.replace(tzinfo=None))
+            if diff < min_diff:
+                min_diff = diff
+                current_idx = i
+        
+        if current_idx is None:
+            print("✗ Could not find current time in forecast data")
+            return [0] * 8
+        
+        print(f"✓ Found current time: {times[current_idx]} (index {current_idx})")
+        
+        # Extract values
+        wind_kmh = hourly['wind_speed_10m']
+        precip_mm = hourly['precipitation']
+        visibility_m = hourly['visibility']
+        weather_codes = hourly['weather_code']
+        
+        # Helper to safely get value
+        def safe_get(arr, idx, default=0):
+            try:
+                val = arr[idx] if idx < len(arr) else default
+                return val if val is not None else default
+            except:
+                return default
+        
+        # Convert wind from km/h to knots (1 km/h = 0.539957 knots)
+        def kmh_to_knots(kmh):
+            return int(kmh * 0.539957) if kmh is not None else 0
+        
+        # Get wind values
+        wind_now = kmh_to_knots(safe_get(wind_kmh, current_idx))
+        wind_plus1 = kmh_to_knots(safe_get(wind_kmh, current_idx + 1))
+        wind_plus2 = kmh_to_knots(safe_get(wind_kmh, current_idx + 2))
+        wind_plus3 = kmh_to_knots(safe_get(wind_kmh, current_idx + 3))
+        
+        # Find tomorrow at 9:00
+        target_tmr = now_dt.replace(hour=9, minute=0, second=0, microsecond=0) + timedelta(days=1)
+        target_tmr = target_tmr.replace(tzinfo=None)
+        
+        tmr_idx = None
+        min_tmr_diff = timedelta(hours=999)
+        for i, t in enumerate(times):
+            diff = abs(t - target_tmr)
+            if diff < min_tmr_diff:
+                min_tmr_diff = diff
+                tmr_idx = i
+        
+        wind_tmr = kmh_to_knots(safe_get(wind_kmh, tmr_idx)) if tmr_idx else wind_now
+        
+        # Precipitation: sum of next 2 hours
+        precip_next2h = round(
+            safe_get(precip_mm, current_idx + 1, 0) + 
+            safe_get(precip_mm, current_idx + 2, 0),
+            1
+        )
+        
+        # Sun and fog scores (use current values)
+        sun_score = get_sun_score(safe_get(weather_codes, current_idx))
+        fog_score = get_fog_score(safe_get(visibility_m, current_idx))
+        
+        print(f"✓ Weather Success:")
+        print(f"  Wind: Now={wind_now}kts, +1h={wind_plus1}kts, +2h={wind_plus2}kts, +3h={wind_plus3}kts, Tmr@9={wind_tmr}kts")
+        print(f"  Precipitation (next 2h): {precip_next2h}mm")
+        print(f"  Visibility: {safe_get(visibility_m, current_idx)}m → Fog Score: {fog_score}")
+        print(f"  Weather Code: {safe_get(weather_codes, current_idx)} → Sun Score: {sun_score}")
+        
+        # Return: [Precip, WindNow, Wind+1, Wind+2, Wind+3, WindTmr@9, Sun, Fog]
+        return [
+            precip_next2h,
+            wind_now,
+            wind_plus1,
+            wind_plus2,
+            wind_plus3,
+            wind_tmr,
+            sun_score,
+            fog_score
+        ]
+        
+    except Exception as e:
+        print(f"✗ Weather Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return [0] * 8
 
 def main():
-    api_key = os.environ.get('KNMI_API_KEY')
-    ams_tz = pytz.timezone('Europe/Amsterdam')
-    now = datetime.now(ams_tz)
+    """Main execution function"""
+    print("=" * 70)
+    print("Garmin Rowing Data Fetcher - Nijmegen")
+    print("Using Open-Meteo (KNMI HARMONIE AROME) + RWS Lobith")
+    print("=" * 70)
     
-    # ---------------------------------------------------------
-    # 1. FETCH RWS WATER DATA (LOBITH)
-    # ---------------------------------------------------------
-    water_now = 0
-    water_tmr_9 = 0
+    # Get current time in Amsterdam timezone
+    tz = pytz.timezone('Europe/Amsterdam')
+    now = datetime.now(tz)
+    print(f"Fetch time: {now.strftime('%Y-%m-%d %H:%M:%S %Z')}\n")
     
-    try:
-        # RWS API for Lobith (Code: LOB)
-        # Using the "Waterhoogte" (Height) endpoint
-        start_date = now.strftime('%Y-%m-%dT%H:%M:%S') + '+01:00'
-        end_date = (now + timedelta(days=2)).strftime('%Y-%m-%dT%H:%M:%S') + '+01:00'
-        
-        # Locatie: Lobith (Code LOB), Grootheid: Waterhoogte (Code WATHTE)
-        rws_url = "https://waterinfo.rws.nl/api/point/values"
-        params = {
-            "locationCode": "LOB",
-            "parameterCode": "WATHTE",
-            "startTime": start_date,
-            "endTime": end_date
-        }
-        
-        r = requests.get(rws_url, params=params)
-        data = r.json()
-        
-        # Find current measurement
-        measurements = [d for d in data.get('values', [])]
-        if measurements:
-            # Sort by time to get latest
-            latest = measurements[-1] 
-            water_now = int(latest['value'])
-            
-            # Find prediction for tomorrow 9:00
-            tmr_9 = now.replace(hour=9, minute=0, second=0, microsecond=0) + timedelta(days=1)
-            # Find closest value in list
-            closest_diff = float('inf')
-            for m in measurements:
-                m_time = datetime.fromisoformat(m['dateTime'].replace('Z', '+00:00'))
-                diff = abs((m_time - tmr_9).total_seconds())
-                if diff < closest_diff:
-                    closest_diff = diff
-                    water_tmr_9 = int(m['value'])
-                    
-    except Exception as e:
-        print(f"RWS Error: {e}")
-
-    # ---------------------------------------------------------
-    # 2. FETCH KNMI WEATHER DATA
-    # ---------------------------------------------------------
-    # We use the Harmonie Arome Model (High Res) via Open Data API
-    # Since parsing NetCDF is heavy, we'll try to get the latest file
+    # Fetch data
+    w_now, w_tmr = fetch_rws_data(now)
+    weather_data = fetch_weather_data(now)
     
-    # Placeholder values in case API fails
-    wind_now = 0
-    wind_now_col = 0
-    wind_next_1 = 0
-    wind_next_1_col = 0
-    wind_next_2 = 0
-    wind_next_2_col = 0
-    wind_tmr_9 = 0
-    wind_tmr_9_col = 0
-    precip_2h = 0
-    sun_icon = 0
-    fog_score = 0
+    # Pack into array: [Timestamp, WaterNow, WaterTmr, ...Weather data...]
+    packed = [int(now.timestamp()), w_now, w_tmr] + weather_data
     
-    try:
-        # KNMI Open Data API endpoint for Harmonie Arome (files)
-        # We list files, pick the latest, download, and read with Xarray
-        base_url = "https://api.dataplatform.knmi.nl/open-data/v1/datasets/harmonie_arome_cy43_p1/versions/1.0/files"
-        headers = {"Authorization": api_key}
-        
-        # Get list of recent files
-        list_r = requests.get(f"{base_url}?maxKeys=5&orderBy=lastModified&sorting=desc", headers=headers)
-        files = list_r.json().get('files', [])
-        
-        if files:
-            latest_file = files[0]['filename']
-            # Download URL
-            file_url = f"{base_url}/{latest_file}/url"
-            dl_r = requests.get(file_url, headers=headers)
-            real_dl_url = dl_r.json().get('temporaryDownloadUrl')
-            
-            # Download binary content
-            nc_data = requests.get(real_dl_url).content
-            
-            # Open with xarray
-            ds = xr.open_dataset(io.BytesIO(nc_data), engine='h5netcdf')
-            
-            # Select Point (Nearest to Nijmegen)
-            point_data = ds.sel(x=LON, y=LAT, method='nearest')
-            
-            # Extract Time Series
-            times = point_data.time.values
-            
-            # Helper to find index of a specific time
-            def get_val_at_time(target_dt, param_name):
-                # Convert target to numpy datetime64
-                target_np = np_dt = target_dt.astimezone(pytz.utc).replace(tzinfo=None)
-                # Find nearest time index
-                # (Simple loop for robustness)
-                nearest_idx = 0
-                min_diff = float('inf')
-                for i, t in enumerate(times):
-                    # Convert t to standard python datetime if needed, usually numpy64
-                    # Compare in seconds
-                    ts = (t - np.datetime64('1970-01-01T00:00:00Z')) / np.timedelta64(1, 's')
-                    target_ts = target_np.timestamp()
-                    diff = abs(ts - target_ts)
-                    if diff < min_diff:
-                        min_diff = diff
-                        nearest_idx = i
-                return float(point_data[param_name].isel(time=nearest_idx).values)
-
-            # --- Extract Variables ---
-            # KNMI parameter names vary, standard Harmonie usually has:
-            # 'wind_speed_10m' or similar. 
-            # Note: Checking standard CF conventions for Harmonie
-            
-            # Wind Speed (often 'ff' or 'wind_speed') - check your dataset specifics
-            # Assuming 'ff' for wind speed in m/s based on common KNMI headers
-            # If failing, print(ds.data_vars) to debug in logs
-            w_spd = 'wind_speed_10m' if 'wind_speed_10m' in ds else 'ff'
-            precip = 'precipitation_flux' if 'precipitation_flux' in ds else 'pr' # kg/m2/s
-            clouds = 'cloud_area_fraction' if 'cloud_area_fraction' in ds else 'clt'
-            vis = 'visibility' if 'visibility' in ds else 'vis'
-
-            # 1. Wind (Current, +1, +2, Tmr 9:00)
-            w_now_mps = get_val_at_time(now, w_spd)
-            w_n1_mps = get_val_at_time(now + timedelta(hours=1), w_spd)
-            w_n2_mps = get_val_at_time(now + timedelta(hours=2), w_spd)
-            tmr_9 = now.replace(hour=9, minute=0, second=0, microsecond=0) + timedelta(days=1)
-            w_tmr_mps = get_val_at_time(tmr_9, w_spd)
-            
-            wind_now = int(round(mps_to_knots(w_now_mps)))
-            wind_now_col = get_wind_color(wind_now)
-            
-            w_n1 = int(round(mps_to_knots(w_n1_mps)))
-            wind_next_1 = w_n1
-            wind_next_1_col = get_wind_color(w_n1)
-            
-            w_n2 = int(round(mps_to_knots(w_n2_mps)))
-            wind_next_2 = w_n2
-            wind_next_2_col = get_wind_color(w_n2)
-            
-            w_tmr = int(round(mps_to_knots(w_tmr_mps)))
-            wind_tmr_9 = w_tmr
-            wind_tmr_9_col = get_wind_color(w_tmr)
-            
-            # 2. Precipitation (Sum next 2h)
-            # KNMI often gives flux (kg/m2/s) or accumulated. 
-            # If flux: sum * 3600. If accumulated, take diff.
-            # Simplified: Check probability or simple flux. 
-            # Let's assume flux for this script.
-            p_now = get_val_at_time(now, precip)
-            p_1h = get_val_at_time(now + timedelta(hours=1), precip)
-            # convert kg/m2/s to mm/h -> value * 3600
-            precip_mm = (p_now + p_1h) * 3600
-            precip_2h = round(precip_mm, 1)
-
-            # 3. Sun/Fog (Next 2 hours average)
-            c_now = get_val_at_time(now, clouds) # 0-1
-            sun_icon = get_sun_icon(c_now)
-            
-            v_now = get_val_at_time(now, vis) # meters
-            fog_score = get_fog_score(v_now)
-
-    except Exception as e:
-        print(f"KNMI Error: {e}")
-        # import traceback
-        # traceback.print_exc()
-
-    # ---------------------------------------------------------
-    # 3. PACK DATA
-    # ---------------------------------------------------------
-    # Unix Timestamp for stale check
-    ts = int(now.timestamp())
+    # Output
+    print("\n" + "=" * 70)
+    print("FINAL PACKED JSON")
+    print("=" * 70)
+    print(json.dumps(packed))
+    print("\nFormat: [Timestamp, WaterNow, WaterTmr, Precip2h, WindNow, Wind+1, Wind+2, Wind+3, WindTmr@9, Sun, Fog]")
+    print(f"Array length: {len(packed)} (expected: 11)")
     
-    # ARRAY MAPPING:
-    # 0: Timestamp
-    # 1: Water Now (cm)
-    # 2: Water Tomorrow 9:00 (cm)
-    # 3: Precip next 2h (mm)
-    # 4: Wind Now (kts)
-    # 5: Wind Now Color
-    # 6: Wind +1h (kts)
-    # 7: Wind +1h Color
-    # 8: Wind +2h (kts)
-    # 9: Wind +2h Color
-    # 10: Wind Tomorrow 9:00 (kts)
-    # 11: Wind Tomorrow 9:00 Color
-    # 12: Sun Icon
-    # 13: Fog Score
-    
-    packed = [
-        ts,
-        water_now, water_tmr_9,
-        precip_2h,
-        wind_now, wind_now_col,
-        wind_next_1, wind_next_1_col,
-        wind_next_2, wind_next_2_col,
-        wind_tmr_9, wind_tmr_9_col,
-        sun_icon,
-        fog_score
-    ]
-    
-    # Save to JSON
-    with open('data.json', 'w') as f:
+    # Save to file
+    with open("data.json", "w") as f:
         json.dump(packed, f)
-        
-    print("Successfully packed data:", packed)
+    print("\n✓ Saved to data.json")
 
 if __name__ == "__main__":
-    import numpy as np # Helper for datetime conversion in main
     main()
