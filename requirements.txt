@@ -1,0 +1,6 @@
+requests
+pandas
+xarray
+netCDF4
+h5netcdf
+pytz
