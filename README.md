@@ -42,8 +42,6 @@ Water Level: Current height at Lobith (cm) with a trend indicator (`^` rising, `
 Status Indicators: "SUN" or "FOG" alerts based on visibility and cloud cover. currently sun and fog detection is not the best :( 
 
 
-
-
 # How the backend works
 
 Instead of running a dedicated server (which costs money), this project uses GitHub Actions as a free backend.
@@ -62,13 +60,10 @@ Water: We query the Rijkswaterstaat API for the "Lobith" station to get precise 
 4. The Watch: Your Garmin watch connects to your phone via Bluetooth, downloads that raw JSON file every hour via a GET request, and stores it in its memory. The watchface then takes this data and display all this data to the display.
 
 
-
-
-
 # Build & Install Guide
 Want to modify the code, add custom features or another background image? Do this!
 
-### 1. Prerequisites 
+### 1. Prerequisites
 
 You need a few tools installed on your computer:
 
@@ -76,8 +71,6 @@ You need a few tools installed on your computer:
 * Java Development Kit: Required for the Garmin compiler. (JDK 17 or 11 work).
 * Garmin Connect IQ SDK Manager: 
 * Open the SDK Manager, log in, and download the latest "Connect IQ SDK" and the device definitions for your specific watch.*
-
-
 
 ### 2. Setup VSC 
 
@@ -94,7 +87,6 @@ You need a few tools installed on your computer:
 * To test the data fetching, go to Simulation > Trigger Background Scheduled Event in the simulator menu, this forces the watch to download the `data.json` file.
 
 
-
 ### 4. Using real hardware 
 
 To get this on your actual wrist without publishing to the store:
@@ -106,8 +98,6 @@ To get this on your actual wrist without publishing to the store:
 5. Drag and drop that `.prg` file into the `GARMIN/APPS/` folder on your watch's storage drive
 6. Disconnect safely. The watch face should now be available in your watch's menu
 > **Hardware Note:** If you are on a Mac and it doesn't recognize your watch as a drive, try using a Windows machine or a different cable. (My MacBook wouldn't recognize it, but my Dell worked fine).
-
-
 
 ### To-do list: 
 * [ ] Improve the fog and sun detection logic.

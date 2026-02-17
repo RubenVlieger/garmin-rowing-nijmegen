@@ -6,12 +6,17 @@ using Toybox.Application;
 using Toybox.Time;
 using Toybox.Time.Gregorian;
 
-class watchfaceView extends WatchUi.WatchFace {
+class watchfaceView extends WatchUi.WatchFace 
+{
     
     private var bgImage;
+    private var weatherData;  // cache, for battery efficiency
+    private var isStale = true;
 
     function initialize() {
         WatchFace.initialize();
+        // Load data immediately on startup
+        updateWeatherData(); 
     }
 
     function onLayout(dc as Graphics.Dc) as Void {
@@ -22,66 +27,84 @@ class watchfaceView extends WatchUi.WatchFace {
         }
     }
 
+    // Called when the watch face comes out of sleep or app starts
+    function onShow() as Void {
+        updateWeatherData();
+    }
+
+    // Helper to load from storage (saves battery vs calling in onUpdate)
+    function updateWeatherData() as Void {
+        var data = Application.Storage.getValue("weather_data");
+        
+        if (data instanceof Lang.Array && data.size() >= 11) {
+            weatherData = data;
+            
+            var dataTime = data[0];
+            // Check if data is older than 2 hours (7200 seconds)
+            if (dataTime != null && (Time.now().value() - dataTime) < 7200) {
+                isStale = false;
+            } else {
+                isStale = true;
+            }
+        } else {
+            weatherData = null;
+        }
+    }
+
     function onUpdate(dc as Graphics.Dc) as Void {
+        var width = dc.getWidth();
+        var height = dc.getHeight();
+        var cx = width / 2; // Center X
+        
+        // 1. Draw Background
         dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
         dc.clear();
         
         if (bgImage != null) {
+            // Center the image if it doesn't match screen size exactly, 
+            // or just draw at 0,0 if it's the right size.
+            // For best results, use a background that matches the largest resolution 
+            // or a solid color background. Here we just draw at 0,0.
             dc.drawBitmap(0, 0, bgImage);
         }
 
-        // 1. Fetch Data
-        var data = Application.Storage.getValue("weather_data");
-        var waterNow = 0, waterTmr = 0, precip = 0.0, sunScore = 5, fogScore = 5;
+        // 2. Parse Cached Data
+        var waterNow = 0, waterTmr = 0, precip = 0.0, sunScore = 5, fogScore = 5, currentTemp = 0;
         var winds = [0, 0, 0, 0]; // Now, +1, +2, Tmr9
-        var isStale = true;
 
-        if (data instanceof Lang.Array && data.size() >= 11) {
-            waterNow = data[1] != null ? data[1] : 0;
-            waterTmr = data[2] != null ? data[2] : 0;
-            precip   = data[3] != null ? data[3] : 0.0;
-            winds    = [data[4], data[5], data[6], data[8]]; // Note: data[8] is Tmr@9
-            sunScore = data[9] != null ? data[9] : 5;
-            fogScore = data[10] != null ? data[10] : 5;
-            
-            var dataTime = data[0];
-            if (dataTime != null && (Time.now().value() - dataTime) < 7200) {
-                isStale = false;
-            }
+        if (weatherData != null) {
+            waterNow = weatherData[1] != null ? weatherData[1] : 0;
+            waterTmr = weatherData[2] != null ? weatherData[2] : 0;
+            precip   = weatherData[3] != null ? weatherData[3] : 0.0;
+            winds    = [weatherData[4], weatherData[5], weatherData[6], weatherData[8]]; 
+            sunScore = weatherData[9] != null ? weatherData[9] : 5;
+            fogScore = weatherData[10] != null ? weatherData[10] : 5;
+        }
+        if (weatherData != null && weatherData.size() >= 12) {
+            currentTemp = weatherData[11]; // This is the new value
         }
 
-        // 2. TOP SECTION: Battery & Date
+        // 3. TOP SECTION: Battery & Date
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
         var stats = System.getSystemStats();
         var dateInfo = Gregorian.info(Time.now(), Time.FORMAT_MEDIUM);
         var dateStr = Lang.format("$1$ $2$", [dateInfo.day, dateInfo.month]);
         
-        dc.drawText(130, 25, Graphics.FONT_XTINY, stats.battery.toNumber().toString() + "%", Graphics.TEXT_JUSTIFY_CENTER);
-        dc.drawText(130, 45, Graphics.FONT_XTINY, dateStr, Graphics.TEXT_JUSTIFY_CENTER);
+        // Dynamic Y positions: 10% and 18% down the screen
+        dc.drawText(cx, height * 0.10, Graphics.FONT_XTINY, stats.battery.toNumber().toString() + "%", Graphics.TEXT_JUSTIFY_CENTER);
+        dc.drawText(cx, height * 0.18, Graphics.FONT_XTINY, dateStr, Graphics.TEXT_JUSTIFY_CENTER);
 
-        // 3. CENTER: Time
+        // 4. CENTER: Time
         var clockTime = System.getClockTime();
         var timeStr = Lang.format("$1$:$2$", [clockTime.hour.format("%02d"), clockTime.min.format("%02d")]);
         dc.setColor(isStale ? Graphics.COLOR_LT_GRAY : Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(130, 70, Graphics.FONT_NUMBER_HOT, timeStr, Graphics.TEXT_JUSTIFY_CENTER);
-
-        // 4. BOTTOM 30% (The Dashboard)
-        var dashY = 140;
-
-        // Water Level + Trend
-        var trend = "=";
-        if (waterTmr - waterNow >= 50) { trend = "^"; } // Using ^ for "Up" per your logic
-        else if (waterNow - waterTmr > 50) { trend = "v"; } // Using v for "Down"
         
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(130, 220, Graphics.FONT_TINY, waterNow + "m
-        m " + trend, Graphics.TEXT_JUSTIFY_CENTER);
+        // Time at roughly 30% down
+        dc.drawText(cx, height * 0.27, Graphics.FONT_NUMBER_HOT, timeStr, Graphics.TEXT_JUSTIFY_CENTER);
 
-        // Wind Strip (Now, +1h, +2h, Tmr9)
-        var xOffsets = [75, 110, 145, 185];
-        for (var i = 0; i < 4; i++) {
-            drawWindValue(dc, xOffsets[i], dashY + 63, winds[i]);
-        }
+        // 5. BOTTOM SECTION (The Dashboard)
+        // We start the dashboard around 65% down the screen
+        var dashY = height * 0.7; 
 
         // Precip, Sun, Fog Indicators
         var statusStr = precip.format("%.1f") + "mm";
@@ -89,7 +112,31 @@ class watchfaceView extends WatchUi.WatchFace {
         if (fogScore <= 3) { statusStr += "  FOG"; }
         
         dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(130, dashY + 45, Graphics.FONT_XTINY, statusStr, Graphics.TEXT_JUSTIFY_CENTER);
+        dc.drawText(cx, dashY, Graphics.FONT_XTINY, statusStr, Graphics.TEXT_JUSTIFY_CENTER);
+
+        // Wind Strip (Now, +1h, +2h, Tmr9)
+        // Dynamically calculate spacing based on screen width
+        // We want the 4 wind numbers to span about 60% of the screen width
+        var totalWindWidth = width * 0.40;
+        var step = totalWindWidth / 3; // 3 gaps between 4 items
+        var startX = cx - (totalWindWidth / 2);
+        
+        var windY = dashY + (height * 0.07); // Slightly below precipitation
+
+        for (var i = 0; i < 4; i++) {
+            drawWindValue(dc, startX + (step * i), windY, winds[i]);
+        }
+
+        // Water Level + Trend
+        var trend = "=";
+        if (waterTmr - waterNow >= 50) { trend = "^"; }
+        else if (waterNow - waterTmr > 50) { trend = "v"; }
+        
+        var waterY = windY + (height * 0.09); // Below wind
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+
+        var bottomInfo = Lang.format("$1$ $2$ $3$C", [waterNow, trend, currentTemp]);
+        dc.drawText(cx, waterY, Graphics.FONT_XTINY, bottomInfo, Graphics.TEXT_JUSTIFY_CENTER);
     }
 
     private function drawWindValue(dc as Graphics.Dc, x as Lang.Number, y as Lang.Number, knots as Lang.Number) as Void {

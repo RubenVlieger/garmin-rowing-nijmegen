@@ -1,6 +1,8 @@
 developer_key
 /watchface/bin
-/resources
+/resources/watchface_original.PNG
+/resources/squarecover.png
+/resources/coverphoto.jpg
 /mir
 /internal-mir
 /gen
