@@ -1,4 +1,11 @@
-watchface_original.PNG
-watchface2.PNG
 developer_key
 /watchface/bin
+/resources
+/mir
+/internal-mir
+/gen
+/watchface-settings.json
+/watchface.prg
+/watchface.prg.debug.xml
+/watchface/export
+/watchface/resources

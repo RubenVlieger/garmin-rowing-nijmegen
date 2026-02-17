@@ -1,1 +1,11 @@
 project.manifest = manifest.xml
+
+# Base settings
+base.sourcePath = source
+base.resourcePath = resources
+
+# Vivoactive 4 specific settings
+vivoactive4.sourcePath = source;source-device
+vivoactive4.resourcePath = resources;resources-device
+
+project.typecheck = 0
