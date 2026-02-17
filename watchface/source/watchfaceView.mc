@@ -57,16 +57,23 @@ class watchfaceView extends WatchUi.WatchFace
         var cx = width / 2; // Center X
         
         // 1. Draw Background
-        dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
-        dc.clear();
+        // dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
+        // dc.clear();
         
         if (bgImage != null) {
+            var imgW = bgImage.getWidth();
+            var imgH = bgImage.getHeight();
+
             // Center the image if it doesn't match screen size exactly, 
             // or just draw at 0,0 if it's the right size.
             // For best results, use a background that matches the largest resolution 
             // or a solid color background. Here we just draw at 0,0.
-            dc.drawBitmap(0, 0, bgImage);
-        }
+            var x = (width - imgW) / 2;
+            var y = (height - imgH) / 2;
+            
+            // Draw centered
+            dc.drawBitmap(x, y, bgImage);
+         }
 
         // 2. Parse Cached Data
         var waterNow = 0, waterTmr = 0, precip = 0.0, sunScore = 5, fogScore = 5, currentTemp = 0;

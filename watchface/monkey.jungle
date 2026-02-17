@@ -4,8 +4,58 @@ project.manifest = manifest.xml
 base.sourcePath = source
 base.resourcePath = resources
 
-# Vivoactive 4 specific settings
-vivoactive4.sourcePath = source;source-device
-vivoactive4.resourcePath = resources;resources-device
-
 project.typecheck = 0
+amoled_path = $(base.resourcePath);resources-amoled
+
+# --- Venu Series (All AMOLED) ---
+venu.resourcePath = $(amoled_path)
+venud.resourcePath = $(amoled_path)
+venu2.resourcePath = $(amoled_path)
+venu2s.resourcePath = $(amoled_path)
+venu2plus.resourcePath = $(amoled_path)
+venu3.resourcePath = $(amoled_path)
+venu3s.resourcePath = $(amoled_path)
+venusq2.resourcePath = $(amoled_path)
+venusq2m.resourcePath = $(amoled_path)
+
+# --- Vivoactive Series 
+vivoactive5.resourcePath = $(amoled_path)
+vivoactive6.resourcePath = $(amoled_path)
+
+# --- Forerunner Series 
+fr165.resourcePath = $(amoled_path)
+fr165m.resourcePath = $(amoled_path)
+fr265.resourcePath = $(amoled_path)
+fr265s.resourcePath = $(amoled_path)
+fr965.resourcePath = $(amoled_path)
+fr970.resourcePath = $(amoled_path)
+
+# --- Epix (Gen 2) Series 
+epix2.resourcePath = $(amoled_path)
+epix2pro42mm.resourcePath = $(amoled_path)
+epix2pro47mm.resourcePath = $(amoled_path)
+epix2pro51mm.resourcePath = $(amoled_path)
+
+# --- Fenix 8 Series
+# Note: Fenix 8 Solar is MIP, so we do NOT include it here.
+fenix843mm.resourcePath = $(amoled_path)
+fenix847mm.resourcePath = $(amoled_path)
+fenix8pro47mm.resourcePath = $(amoled_path)
+fenixe.resourcePath = $(amoled_path)
+
+# --- Descent Mk3
+descentmk343mm.resourcePath = $(amoled_path)
+descentmk351mm.resourcePath = $(amoled_path)
+
+# --- Approach S70
+approachs7042mm.resourcePath = $(amoled_path)
+approachs7047mm.resourcePath = $(amoled_path)
+
+# --- D2 Air / Mach 1
+d2air.resourcePath = $(amoled_path)
+d2airx10.resourcePath = $(amoled_path)
+d2mach1.resourcePath = $(amoled_path)
+
+# --- MARQ Gen 2
+marq2.resourcePath = $(amoled_path)
+marq2aviator.resourcePath = $(amoled_path)
