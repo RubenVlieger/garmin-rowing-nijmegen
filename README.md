@@ -1,7 +1,5 @@
 This is a custom Garmin Connect watch face built for rowers and water sports enthusiasts in Nijmegen. It provides real-time, hyper-local environmental data directly on your wrist, helping you decide if it's safe to hit the water.
 
-*(Add your screenshots here! The "cool camels" background is iconic.)*
-
 # Why this exists
 
 Generic weather apps don't cut it for rowing in Nijmegen. We need to know:
@@ -40,17 +38,13 @@ Status Indicators: "SUN" or "FOG" alerts based on visibility and cloud cover. cu
 
 Instead of running a dedicated server (which costs money), this project uses GitHub Actions as a free backend.
 
-1. 
-The Brain (GitHub Actions): every hour, a workflow runs a Python script (`fetch_data.py`).
+1. The Brain (GitHub Actions): every hour, a workflow runs a Python script (`fetch_data.py`).
 
 
 2. The Sources:
 Weather: We query [Open-Meteo]() specifically for the KNMI Harmonie Arome model. This is the high-resolution Dutch weather model, which is significantly more accurate for local Dutch weather than others.
 
-
 Water: We query the Rijkswaterstaat API for the "Lobith" station to get precise water heights from now and predicted levels in the near future.
-
-
 
 
 3.  The script processes this data and saves a lightweight `data.json` file back to this repository.
@@ -59,12 +53,12 @@ Water: We query the Rijkswaterstaat API for the "Lobith" station to get precise 
 
 
 
----
 
-Build & Install Guide
+
+# Build & Install Guide
 Want to modify the code, add custom features or another background image? Do this!
 
-1. Prerequisites
+# 1. Prerequisites
 
 You need a few tools installed on your computer:
 
@@ -75,14 +69,14 @@ You need a few tools installed on your computer:
 
 
 
- 2. Setup VSC
+ # 2. Setup VSC
 
 1. Open VS Code
 2. Go to the Extensions tab
 3. Search for and install Monkey C (by Garmin)
 4. Open this repository folder in VS Code
 
-3. Build & Run (Simulator)
+# 3. Build & Run (Simulator)
 1. Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac) and type `Monkey C: Build Current Project`.
 2. Select your watch model.
 3. Once built, go to the "Run and Debug" tab on the left and press the green "Play" button.
@@ -91,7 +85,7 @@ You need a few tools installed on your computer:
 
 
 
-4. Using real hardware
+# 4. Using real hardware
 
 To get this on your actual wrist without publishing to the store:
 
