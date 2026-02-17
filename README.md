@@ -1,7 +1,8 @@
 # Nijmegen Watersport Interface (NWI)
 
-This is a custom Garmin Connect watch face built for rowers and water sports enthusiasts in Nijmegen. It provides real-time, hyper-local environmental data directly on your wrist, helping you decide if it's safe to hit the water.
+This is a custom Garmin Connect watch face built for rowers and water sports enthusiasts in Nijmegen. It provides real-time, hyper-local environmental data directly on your wrist, helping you decide if it's nice to hit the water.
 
+<img src="resources/coverimage.jpg" width="75%">
 # Why this exists
 
 Generic weather apps don't cut it for rowing in Nijmegen. We need to know:
@@ -59,6 +60,7 @@ Water: We query the Rijkswaterstaat API for the "Lobith" station to get precise 
 
 4. The Watch: Your Garmin watch connects to your phone via Bluetooth, downloads that raw JSON file every hour via a GET request, and stores it in its memory. The watchface then takes this data and display all this data to the display.
 
+<img src="resources/simulation.jpg" width="30%">
 
 # Build & Install Guide
 Want to modify the code, add custom features or another background image? Do this!
@@ -105,3 +107,5 @@ To get this on your actual wrist without publishing to the store:
 
 ### Contact
 For questions or anything else, please reach out to me: **ruben.vlieger@ru.nl**
+
+<img src="resources/squarephoto.jpg" width="50%">
