@@ -58,7 +58,7 @@ Water: We query the Rijkswaterstaat API for the "Lobith" station to get precise 
 # Build & Install Guide
 Want to modify the code, add custom features or another background image? Do this!
 
-# 1. Prerequisites
+*** 1. Prerequisites *** 
 
 You need a few tools installed on your computer:
 
@@ -69,14 +69,14 @@ You need a few tools installed on your computer:
 
 
 
- # 2. Setup VSC
+*** 2. Setup VSC ***
 
 1. Open VS Code
 2. Go to the Extensions tab
 3. Search for and install Monkey C (by Garmin)
 4. Open this repository folder in VS Code
 
-# 3. Build & Run (Simulator)
+*** 3. Build & Run (Simulator) ***
 1. Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac) and type `Monkey C: Build Current Project`.
 2. Select your watch model.
 3. Once built, go to the "Run and Debug" tab on the left and press the green "Play" button.
@@ -85,7 +85,7 @@ You need a few tools installed on your computer:
 
 
 
-# 4. Using real hardware
+*** 4. Using real hardware ***
 
 To get this on your actual wrist without publishing to the store:
 
@@ -102,5 +102,5 @@ For questions or anything else, please reach out to me with my email: ruben.vlie
 
 
 
-To-do list:
+*** To-do list: *** 
 Get better fog and sun detection 
