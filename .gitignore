@@ -9,3 +9,5 @@ developer_key
 /watchface.prg.debug.xml
 /watchface/export
 /watchface/resources
+/.DS_Store
+/.gitignore
