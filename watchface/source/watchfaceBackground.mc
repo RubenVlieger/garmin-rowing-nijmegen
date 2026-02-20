@@ -12,13 +12,21 @@ class BackgroundService extends System.ServiceDelegate {
     }
 
     function onTemporalEvent() {
-        var url = "https://raw.githubusercontent.com/RubenVlieger/garmin-rowing-nijmegen/main/data.json";
-        var options = {
-            :method => Communications.HTTP_REQUEST_METHOD_GET,
-            :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON
-        };
-        
-        Communications.makeWebRequest(url, {}, options, method(:onReceive));
+
+        if (System.getDeviceSettings().phoneConnected)      // Only try to fetch if phone is connected!
+        {
+            var url = "https://garmin-data-proxy.ruben-vlieger.workers.dev/";
+            var options = {
+                :method => Communications.HTTP_REQUEST_METHOD_GET,
+                :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON
+            };
+            
+            Communications.makeWebRequest(url, {}, options, method(:onReceive));
+        }
+        else
+        {
+            Background.exit(null);
+        }
     }
 
     function onReceive(responseCode as Lang.Number, data as Lang.Any) as Void {

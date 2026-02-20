@@ -13,3 +13,6 @@ developer_key
 /watchface/resources
 /.DS_Store
 /.gitignore
+/data.json
+/bin
+/garminrowingnijmegen.prg.debug.xml

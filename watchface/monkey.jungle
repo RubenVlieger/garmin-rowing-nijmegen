@@ -5,57 +5,57 @@ base.sourcePath = source
 base.resourcePath = resources
 
 project.typecheck = 0
-amoled_path = $(base.resourcePath);resources-amoled
 
 # --- Venu Series (All AMOLED) ---
-venu.resourcePath = $(amoled_path)
-venud.resourcePath = $(amoled_path)
-venu2.resourcePath = $(amoled_path)
-venu2s.resourcePath = $(amoled_path)
-venu2plus.resourcePath = $(amoled_path)
-venu3.resourcePath = $(amoled_path)
-venu3s.resourcePath = $(amoled_path)
-venusq2.resourcePath = $(amoled_path)
-venusq2m.resourcePath = $(amoled_path)
+venu.resourcePath = $(venu.resourcePath);resources-amoled
+venud.resourcePath = $(venud.resourcePath);resources-amoled
+venu2.resourcePath = $(venu2.resourcePath);resources-amoled
+venu2s.resourcePath = $(venu2s.resourcePath);resources-amoled
+venu2plus.resourcePath = $(venu2plus.resourcePath);resources-amoled
+venu3.resourcePath = $(venu3.resourcePath);resources-amoled
+venu3s.resourcePath = $(venu3s.resourcePath);resources-amoled
+venu441mm.resourcePath = $(venu441mm.resourcePath);resources-amoled
+venu445mm.resourcePath = $(venu445mm.resourcePath);resources-amoled
+venusq2.resourcePath = $(venusq2.resourcePath);resources-amoled
+venusq2m.resourcePath = $(venusq2m.resourcePath);resources-amoled
 
 # --- Vivoactive Series 
-vivoactive5.resourcePath = $(amoled_path)
-vivoactive6.resourcePath = $(amoled_path)
+vivoactive5.resourcePath = $(vivoactive5.resourcePath);resources-amoled
+vivoactive6.resourcePath = $(vivoactive6.resourcePath);resources-amoled
 
 # --- Forerunner Series 
-fr165.resourcePath = $(amoled_path)
-fr165m.resourcePath = $(amoled_path)
-fr265.resourcePath = $(amoled_path)
-fr265s.resourcePath = $(amoled_path)
-fr965.resourcePath = $(amoled_path)
-fr970.resourcePath = $(amoled_path)
+fr165.resourcePath = $(fr165.resourcePath);resources-amoled
+fr165m.resourcePath = $(fr165m.resourcePath);resources-amoled
+fr265.resourcePath = $(fr265.resourcePath);resources-amoled
+fr265s.resourcePath = $(fr265s.resourcePath);resources-amoled
+fr965.resourcePath = $(fr965.resourcePath);resources-amoled
+fr970.resourcePath = $(fr970.resourcePath);resources-amoled
 
 # --- Epix (Gen 2) Series 
-epix2.resourcePath = $(amoled_path)
-epix2pro42mm.resourcePath = $(amoled_path)
-epix2pro47mm.resourcePath = $(amoled_path)
-epix2pro51mm.resourcePath = $(amoled_path)
+epix2.resourcePath = $(epix2.resourcePath);resources-amoled
+epix2pro42mm.resourcePath = $(epix2pro42mm.resourcePath);resources-amoled
+epix2pro47mm.resourcePath = $(epix2pro47mm.resourcePath);resources-amoled
+epix2pro51mm.resourcePath = $(epix2pro51mm.resourcePath);resources-amoled
 
 # --- Fenix 8 Series
-# Note: Fenix 8 Solar is MIP, so we do NOT include it here.
-fenix843mm.resourcePath = $(amoled_path)
-fenix847mm.resourcePath = $(amoled_path)
-fenix8pro47mm.resourcePath = $(amoled_path)
-fenixe.resourcePath = $(amoled_path)
+fenix843mm.resourcePath = $(fenix843mm.resourcePath);resources-amoled
+fenix847mm.resourcePath = $(fenix847mm.resourcePath);resources-amoled
+fenix8pro47mm.resourcePath = $(fenix8pro47mm.resourcePath);resources-amoled
+fenixe.resourcePath = $(fenixe.resourcePath);resources-amoled
 
 # --- Descent Mk3
-descentmk343mm.resourcePath = $(amoled_path)
-descentmk351mm.resourcePath = $(amoled_path)
+descentmk343mm.resourcePath = $(descentmk343mm.resourcePath);resources-amoled
+descentmk351mm.resourcePath = $(descentmk351mm.resourcePath);resources-amoled
 
 # --- Approach S70
-approachs7042mm.resourcePath = $(amoled_path)
-approachs7047mm.resourcePath = $(amoled_path)
+approachs7042mm.resourcePath = $(approachs7042mm.resourcePath);resources-amoled
+approachs7047mm.resourcePath = $(approachs7047mm.resourcePath);resources-amoled
 
 # --- D2 Air / Mach 1
-d2air.resourcePath = $(amoled_path)
-d2airx10.resourcePath = $(amoled_path)
-d2mach1.resourcePath = $(amoled_path)
+d2air.resourcePath = $(d2air.resourcePath);resources-amoled
+d2airx10.resourcePath = $(d2airx10.resourcePath);resources-amoled
+d2mach1.resourcePath = $(d2mach1.resourcePath);resources-amoled
 
 # --- MARQ Gen 2
-marq2.resourcePath = $(amoled_path)
-marq2aviator.resourcePath = $(amoled_path)
+marq2.resourcePath = $(marq2.resourcePath);resources-amoled
+marq2aviator.resourcePath = $(marq2aviator.resourcePath);resources-amoled

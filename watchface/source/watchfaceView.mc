@@ -8,39 +8,88 @@ using Toybox.Time.Gregorian;
 
 class watchfaceView extends WatchUi.WatchFace 
 {
-    
-    private var bgImage;
-    private var weatherData;  // cache, for battery efficiency
+    // --- Data Storage ---
+    private var weatherData;  
     private var isStale = true;
+    private var bgImage;
+    private var showBackground = true; // New Setting Variable
+
+    // --- Layout Coordinates ---
+    private var cx, cy, width, height;
+    private var batteryY, dateY, timeY;
+    private var dashY, windY, waterY;
+    private var windStartX, windStep;
+    private var imgX = 0, imgY = 0;
+
+    // --- Cache Variables ---
+    private var lastDateDay = -1;
+    private var cachedDateStr = "";
+    private var lastTimeMin = -1;
+    private var cachedTimeStr = "";
+    private var lastBatteryVal = -1.0;
+    private var cachedBatteryStr = "";
 
     function initialize() {
         WatchFace.initialize();
-        // Load data immediately on startup
         updateWeatherData(); 
     }
 
     function onLayout(dc as Graphics.Dc) as Void {
+        // 1. Check Settings first
         try {
-            bgImage = Application.loadResource(Rez.Drawables.LauncherBackground);
+            showBackground = Application.Properties.getValue("ShowBackgroundImage");
         } catch (ex) {
-            bgImage = null;
+            showBackground = true; // Default to true if setting fails
         }
+
+        // 2. Load Resources
+        if (showBackground) {
+            try {
+                if (bgImage == null) { // Don't reload if already loaded
+                    bgImage = Application.loadResource(Rez.Drawables.LauncherBackground);
+                }
+            } catch (ex) {
+                bgImage = null;
+            }
+        } else {
+            bgImage = null; // Free memory if setting is off
+        }
+
+        // 3. Calculate Screen Geometry
+        width = dc.getWidth();
+        height = dc.getHeight();
+        cx = width / 2;
+        cy = height / 2;
+
+        if (bgImage != null) {
+            imgX = (width - bgImage.getWidth()) / 2;
+            imgY = (height - bgImage.getHeight()) / 2;
+        }
+
+        batteryY = height * 0.10;
+        dateY    = height * 0.18;
+        timeY    = height * 0.27;
+        
+        dashY    = height * 0.70;
+        windY    = dashY + (height * 0.07);
+        waterY   = windY + (height * 0.09);
+
+        var totalWindWidth = width * 0.40;
+        windStep = totalWindWidth / 3;
+        windStartX = cx - (totalWindWidth / 2);
     }
 
-    // Called when the watch face comes out of sleep or app starts
     function onShow() as Void {
         updateWeatherData();
     }
 
-    // Helper to load from storage (saves battery vs calling in onUpdate)
     function updateWeatherData() as Void {
         var data = Application.Storage.getValue("weather_data");
         
-        if (data instanceof Lang.Array && data.size() >= 11) {
+        if (data instanceof Lang.Array && data.size() >= 12) {
             weatherData = data;
             
             var dataTime = data[0];
-            // Check if data is older than 2 hours (7200 seconds)
             if (dataTime != null && (Time.now().value() - dataTime) < 7200) {
                 isStale = false;
             } else {
@@ -48,36 +97,24 @@ class watchfaceView extends WatchUi.WatchFace
             }
         } else {
             weatherData = null;
+            isStale = true;
         }
     }
 
     function onUpdate(dc as Graphics.Dc) as Void {
-        var width = dc.getWidth();
-        var height = dc.getHeight();
-        var cx = width / 2; // Center X
         
         // 1. Draw Background
-        // dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
-        // dc.clear();
+        dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
+        dc.clear(); 
         
-        if (bgImage != null) {
-            var imgW = bgImage.getWidth();
-            var imgH = bgImage.getHeight();
+        // Only draw bitmap if setting is enabled AND image loaded
+        if (showBackground && bgImage != null) {
+            dc.drawBitmap(imgX, imgY, bgImage);
+        }
 
-            // Center the image if it doesn't match screen size exactly, 
-            // or just draw at 0,0 if it's the right size.
-            // For best results, use a background that matches the largest resolution 
-            // or a solid color background. Here we just draw at 0,0.
-            var x = (width - imgW) / 2;
-            var y = (height - imgH) / 2;
-            
-            // Draw centered
-            dc.drawBitmap(x, y, bgImage);
-         }
-
-        // 2. Parse Cached Data
+        // 2. Parse Weather Data
         var waterNow = 0, waterTmr = 0, precip = 0.0, sunScore = 5, fogScore = 5, currentTemp = 0;
-        var winds = [0, 0, 0, 0]; // Now, +1, +2, Tmr9
+        var winds = [0, 0, 0, 0]; 
 
         if (weatherData != null) {
             waterNow = weatherData[1] != null ? weatherData[1] : 0;
@@ -86,34 +123,38 @@ class watchfaceView extends WatchUi.WatchFace
             winds    = [weatherData[4], weatherData[5], weatherData[6], weatherData[8]]; 
             sunScore = weatherData[9] != null ? weatherData[9] : 5;
             fogScore = weatherData[10] != null ? weatherData[10] : 5;
-        }
-        if (weatherData != null && weatherData.size() >= 12) {
-            currentTemp = weatherData[11]; // This is the new value
+            currentTemp = weatherData[11]; 
         }
 
         // 3. TOP SECTION: Battery & Date
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        var stats = System.getSystemStats();
-        var dateInfo = Gregorian.info(Time.now(), Time.FORMAT_MEDIUM);
-        var dateStr = Lang.format("$1$ $2$", [dateInfo.day, dateInfo.month]);
         
-        // Dynamic Y positions: 10% and 18% down the screen
-        dc.drawText(cx, height * 0.10, Graphics.FONT_XTINY, stats.battery.toNumber().toString() + "%", Graphics.TEXT_JUSTIFY_CENTER);
-        dc.drawText(cx, height * 0.18, Graphics.FONT_XTINY, dateStr, Graphics.TEXT_JUSTIFY_CENTER);
+        var stats = System.getSystemStats();
+        if (stats.battery != lastBatteryVal) {
+            cachedBatteryStr = stats.battery.format("%d") + "%";
+            lastBatteryVal = stats.battery;
+        }
+        dc.drawText(cx, batteryY, Graphics.FONT_XTINY, cachedBatteryStr, Graphics.TEXT_JUSTIFY_CENTER);
+
+        var now = Time.now();
+        var info = Gregorian.info(now, Time.FORMAT_MEDIUM);
+        if (info.day != lastDateDay) {
+            cachedDateStr = Lang.format("$1$ $2$", [info.day, info.month]);
+            lastDateDay = info.day;
+        }
+        dc.drawText(cx, dateY, Graphics.FONT_XTINY, cachedDateStr, Graphics.TEXT_JUSTIFY_CENTER);
 
         // 4. CENTER: Time
         var clockTime = System.getClockTime();
-        var timeStr = Lang.format("$1$:$2$", [clockTime.hour.format("%02d"), clockTime.min.format("%02d")]);
-        dc.setColor(isStale ? Graphics.COLOR_LT_GRAY : Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        if (clockTime.min != lastTimeMin) {
+            cachedTimeStr = Lang.format("$1$:$2$", [clockTime.hour.format("%02d"), clockTime.min.format("%02d")]);
+            lastTimeMin = clockTime.min;
+        }
         
-        // Time at roughly 30% down
-        dc.drawText(cx, height * 0.27, Graphics.FONT_NUMBER_HOT, timeStr, Graphics.TEXT_JUSTIFY_CENTER);
+        dc.setColor(isStale ? Graphics.COLOR_LT_GRAY : Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, timeY, Graphics.FONT_NUMBER_HOT, cachedTimeStr, Graphics.TEXT_JUSTIFY_CENTER);
 
-        // 5. BOTTOM SECTION (The Dashboard)
-        // We start the dashboard around 65% down the screen
-        var dashY = height * 0.7; 
-
-        // Precip, Sun, Fog Indicators
+        // 5. BOTTOM SECTION
         var statusStr = precip.format("%.1f") + "mm";
         if (sunScore >= 8) { statusStr += "  SUN"; }
         if (fogScore <= 3) { statusStr += "  FOG"; }
@@ -121,27 +162,15 @@ class watchfaceView extends WatchUi.WatchFace
         dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
         dc.drawText(cx, dashY, Graphics.FONT_XTINY, statusStr, Graphics.TEXT_JUSTIFY_CENTER);
 
-        // Wind Strip (Now, +1h, +2h, Tmr9)
-        // Dynamically calculate spacing based on screen width
-        // We want the 4 wind numbers to span about 60% of the screen width
-        var totalWindWidth = width * 0.40;
-        var step = totalWindWidth / 3; // 3 gaps between 4 items
-        var startX = cx - (totalWindWidth / 2);
-        
-        var windY = dashY + (height * 0.07); // Slightly below precipitation
-
         for (var i = 0; i < 4; i++) {
-            drawWindValue(dc, startX + (step * i), windY, winds[i]);
+            drawWindValue(dc, windStartX + (windStep * i), windY, winds[i]);
         }
 
-        // Water Level + Trend
         var trend = "=";
         if (waterTmr - waterNow >= 50) { trend = "^"; }
         else if (waterNow - waterTmr > 50) { trend = "v"; }
         
-        var waterY = windY + (height * 0.09); // Below wind
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-
         var bottomInfo = Lang.format("$1$ $2$ $3$C", [waterNow, trend, currentTemp]);
         dc.drawText(cx, waterY, Graphics.FONT_XTINY, bottomInfo, Graphics.TEXT_JUSTIFY_CENTER);
     }
