@@ -20,6 +20,5 @@ developer_key kopie
 
 # Analytics
 /backend/analytics/
-/backend/GeoLite2-Country.mmdb
 /backend/__pycache__/
 /backend/suggestions.db
