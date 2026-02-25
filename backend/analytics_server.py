@@ -83,17 +83,23 @@ def _hash_user(ip: str, daily_salt: str) -> str:
 def _lookup_country(ip: str) -> str:
     """Look up the country code for an IP address. Returns 'XX' on failure."""
     # Private/local IPs can't be geolocated
-    if ip.startswith(("127.", "10.", "192.168.", "172.16.", "172.17.",
-                      "172.18.", "172.19.", "172.2", "172.3", "0.", "::1")):
+    private_prefixes = ("127.", "10.", "192.168.", "172.16.", "172.17.",
+                        "172.18.", "172.19.", "172.2", "172.3", "0.", "::1")
+    if ip.startswith(private_prefixes):
+        print(f"[geoip] Private/internal IP detected: {ip} → XX")
         return "XX"
 
     reader = _get_geoip_reader()
     if reader is None:
+        print(f"[geoip] GeoIP reader unavailable for IP: {ip} → XX")
         return "XX"
     try:
         response = reader.country(ip)
-        return response.country.iso_code or "XX"
-    except Exception:
+        code = response.country.iso_code or "XX"
+        print(f"[geoip] {ip} → {code}")
+        return code
+    except Exception as e:
+        print(f"[geoip] Lookup failed for {ip}: {e} → XX")
         return "XX"
 
 
@@ -121,6 +127,8 @@ def _log_analytics(ip: str):
     daily_salt = _get_daily_salt(today)
     user_hash = _hash_user(ip, daily_salt)
 
+    print(f"[analytics] Request from raw IP: {ip}")
+
     # Dedup check
     if user_hash in _recent_users and (now - _recent_users[user_hash]) < DEDUP_INTERVAL:
         return  # Already logged recently
@@ -143,6 +151,7 @@ def _log_analytics(ip: str):
         "ts": int(now),
         "uid": user_hash,
         "country": country,
+        "_dbg_ip": ip,  # TEMPORARY: remove after diagnosis
     }
 
     with open(log_file, "a") as f:
@@ -280,6 +289,20 @@ def health():
         "geoip": GEOIP_AVAILABLE and GEOIP_DB_PATH.exists(),
         "data_json": DATA_JSON_PATH.exists(),
         "suggestions_db": SUGGESTIONS_DB_PATH.exists(),
+    })
+
+
+@app.route("/debug/ip")
+def debug_ip():
+    """Debug: show what IP Flask sees for this request."""
+    ip = _get_client_ip()
+    country = _lookup_country(ip)
+    return jsonify({
+        "raw_ip": ip,
+        "country": country,
+        "x_forwarded_for": request.headers.get("X-Forwarded-For", None),
+        "remote_addr": request.remote_addr,
+        "geoip_available": GEOIP_AVAILABLE and GEOIP_DB_PATH.exists(),
     })
 
 
