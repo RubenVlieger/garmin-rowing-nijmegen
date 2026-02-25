@@ -15,7 +15,8 @@ class BackgroundService extends System.ServiceDelegate {
 
         if (System.getDeviceSettings().phoneConnected)      // Only try to fetch if phone is connected!
         {
-            var url = "https://rowing-nijmegen.duckdns.org/data.json";
+            var myUid = System.getDeviceSettings().uniqueIdentifier;
+var url = "https://rowing-nijmegen.duckdns.org/data.json?uid=" + myUid;
             var options = {
                 :method => Communications.HTTP_REQUEST_METHOD_GET,
                 :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON
