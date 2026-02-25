@@ -81,23 +81,21 @@ RWS_API_URL = "https://ddapi20-waterwebservices.rijkswaterstaat.nl/ONLINEWAARNEM
 
 # --- RWS FETCHER ---
 def fetch_rws_data(now_dt):
-    """Updated fetcher for RWS DD-API 2.0 with strict headers"""
-    print(f"--- Fetching RWS Data (Lobith) via DD-API 2.0 ---")
+    print(f"--- Fetching RWS Data (Lobith) ---")
     
-    # RWS API expects UTC or very specific Offset strings. 
-    # Let's simplify to a 24-hour window around 'now'.
-    start_dt = now_dt - timedelta(hours=12)
-    end_dt = now_dt + timedelta(days=2)
+    # Try the new unified location code format
+    location_code = "lobith" # or "Lobith"
     
-    # Format: 2026-02-25T14:00:00.000+01:00
-    start_str = start_dt.strftime('%Y-%m-%dT%H:%M:%S.000+01:00')
-    end_str = end_dt.strftime('%Y-%m-%dT%H:%M:%S.000+01:00')
-    
+    # RWS API requires timestamps to be very precise
+    start_str = (now_dt - timedelta(hours=6)).strftime('%Y-%m-%dT%H:%M:%S.000+01:00')
+    end_str = (now_dt + timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S.000+01:00')
+
     payload = {
-        "Locatie": {"Code": "LOBI"},
+        "Locatie": {"Code": location_code},
         "AquoPlusWaarnemingMetadata": {
             "AquoMetadata": {
-                "Grootheid": {"Code": "WATHTE"}
+                "Grootheid": {"Code": "WATHTE"},
+                "Compartiment": {"Code": "OW"} # Added 'Oppervlaktewater' filter
             }
         },
         "Periode": {
@@ -108,20 +106,22 @@ def fetch_rws_data(now_dt):
 
     headers = {
         "Content-Type": "application/json",
-        "Accept": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
     }
 
     try:
         r = requests.post(RWS_API_URL, json=payload, headers=headers, timeout=15)
         
-        # If we get a 404 or 500, this will show the actual HTML/Error text
-        if r.status_code != 200:
-            print(f"✗ RWS API Error {r.status_code}: {r.text[:200]}")
-            return 0, 0
+        if r.status_code == 204:
+            print("✗ RWS Error 204: No data found. Trying fallback station code...")
+            # Fallback to the old LOBI if 'lobith' failed
+            payload["Locatie"]["Code"] = "LOBI"
+            r = requests.post(RWS_API_URL, json=payload, headers=headers, timeout=15)
 
+        r.raise_for_status()
         data = r.json()
         
+                
         water_now = 0
         water_tmr = 0
         target_tmr = now_dt.replace(hour=9, minute=0, second=0, microsecond=0) + timedelta(days=1)
