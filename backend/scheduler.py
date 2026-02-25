@@ -18,7 +18,7 @@ def run_cmd(name, cmd):
         print(f"ERROR running {name}:\n{e.stderr}", file=sys.stderr, flush=True)
 
 if __name__ == "__main__":
-    print("🚀 Starting Docker Python Scheduler...", flush=True)
+    print("Starting Docker Python Scheduler...", flush=True)
     
     last_fetch_time = 0
     last_report_time = 0

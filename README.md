@@ -43,32 +43,20 @@ Water Level: Current height at Lobith (cm) with a trend indicator (`^` rising, `
 Status Indicators: "SUN" or "FOG" alerts based on visibility and cloud cover. currently sun and fog detection is not the best :( 
 
 
-# How the backend works
-
-Instead of running a dedicated server (which costs money), this project uses GitHub Actions as a free backend.
-
-1. The Brain (GitHub Actions): every hour, a workflow runs a Python script (`fetch_data.py`).
-
-
-2. The Sources:
-Weather: We query [Open-Meteo]() specifically for the KNMI Harmonie Arome model. This is the high-resolution Dutch weather model, which is significantly more accurate for local Dutch weather than others.
-
-Water: We query the Rijkswaterstaat API for the "Lobith" station to get precise water heights from now and predicted levels in the near future.
-
-
-3.  The script processes this data and saves a lightweight `data.json` file back to this repository.
-
-4. The Watch: Your Garmin watch connects to your phone via Bluetooth, downloads that raw JSON file every hour via a GET request, and stores it in its memory. The watchface then takes this data and display all this data to the display.
-
-<img src="resources/simulation.jpg" width="30%">
-
 # Server Architecture & Web Dashboard
 
-To provide more features like usage tracking and a web interface, the project now includes a dedicated backend, frontend, and analytics server. 
+To provide a robust backend, usage tracking, and a web interface, this project runs on a dedicated server. The data is fetched at regular intervals and securely served over HTTPS to the Garmin watches.
+
+The stack consists of three main components:
 
 * **Frontend:** A modern, interactive web dashboard served via Nginx. It displays total user counts, daily user activity charts, and an interactive world map of active users by country.
-* **Backend:** A Python Flask API that handles incoming watch face requests, logs anonymized usage data (with location detection), manages user suggestions, and serves the latest weather/water `data.json`.
-* **Analytics Server / Scheduler:** A custom background Python loop that fetches new data from Rijkswaterstaat and Open-Meteo every 15 minutes, ensuring the watch face always receives near real-time updates. It also systematically processes the collected user data into daily analytics reports.
+* **Backend:** A Python Flask API that handles incoming watch face requests over HTTPS, logs anonymized usage data (with location detection), manages user suggestions, and serves the latest weather/water `data.json`.
+* **Analytics Server / Scheduler (`scheduler.py`):** A custom background Python loop that fetches new data every 15 minutes. It queries the high-resolution KNMI Harmonie Arome model via [Open-Meteo]() for local Dutch weather, and the Rijkswaterstaat API for precise water heights at the "Lobith" station. It also systematically processes the collected user data into daily analytics reports.
+
+**How the Watch Connects:**
+Your Garmin watch connects to your phone via Bluetooth, downloads the JSON file from the backend server every hour via an HTTPS GET request, and stores it in its memory. The watch face then parses and immediately updates the display based on this real-time info.
+
+<img src="resources/simulation.jpg" width="30%">
 
 ### Quick Deployment with Docker
 
@@ -80,7 +68,7 @@ sudo docker compose up -d
 
 This command automatically pulls dependencies and spins up the three containers for you. All data (like `data.json`, user analytics, and the suggestions database) is safely mounted via volumes to your host machine so it persists. For more details, see the [Docker Setup Guide](docker_setup.md).
 
-# Build & Install Guide
+# Build & Install guide for the actual watchface
 Want to modify the code, add custom features or another background image? Do this!
 
 ### 1. Prerequisites
