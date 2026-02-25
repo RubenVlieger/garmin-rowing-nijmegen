@@ -121,22 +121,23 @@ def _cleanup_dedup_cache():
 
 
 def _log_analytics(ip: str):
-    """Log an analytics entry for this request if not recently seen."""
     now = time.time()
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    daily_salt = _get_daily_salt(today)
-    user_hash = _hash_user(ip, daily_salt)
+    
+    # 1. Grab the UID passed from the Garmin watch
+    device_uid = request.args.get("uid")
+    
+    # Fallback to IP hashing ONLY if it's accessed via a normal web browser
+    if not device_uid:
+        daily_salt = _get_daily_salt(today)
+        device_uid = _hash_user(ip, daily_salt)
+    
+    # 2. Use the device_uid for your dedup check
+    if device_uid in _recent_users and (now - _recent_users[device_uid]) < DEDUP_INTERVAL:
+        return 
+        
+    _recent_users[device_uid] = now
 
-    print(f"[analytics] Request from raw IP: {ip}")
-
-    # Dedup check
-    if user_hash in _recent_users and (now - _recent_users[user_hash]) < DEDUP_INTERVAL:
-        return  # Already logged recently
-
-    # Update dedup cache
-    _recent_users[user_hash] = now
-
-    # Periodic cleanup of old entries
     if len(_recent_users) > 1000:
         _cleanup_dedup_cache()
 
@@ -149,7 +150,7 @@ def _log_analytics(ip: str):
 
     entry = {
         "ts": int(now),
-        "uid": user_hash,
+        "uid": device_uid,
         "country": country
     }
 
