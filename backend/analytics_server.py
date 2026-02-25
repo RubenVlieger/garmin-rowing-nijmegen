@@ -16,6 +16,7 @@ import hashlib
 import json
 import os
 import secrets
+import sqlite3
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -34,6 +35,8 @@ BASE_DIR = Path(__file__).parent.resolve()
 DATA_JSON_PATH = BASE_DIR.parent / "data.json"
 ANALYTICS_DIR = BASE_DIR / "analytics"
 GEOIP_DB_PATH = BASE_DIR / "GeoLite2-Country.mmdb"
+SUGGESTIONS_DB_PATH = BASE_DIR / "suggestions.db"
+SUMMARY_JSON_PATH = ANALYTICS_DIR / "summary.json"
 
 # How often the same user can be logged (seconds) — matches Garmin's hourly interval
 DEDUP_INTERVAL = 3500  # slightly less than 1 hour to avoid edge cases
@@ -79,6 +82,11 @@ def _hash_user(ip: str, daily_salt: str) -> str:
 
 def _lookup_country(ip: str) -> str:
     """Look up the country code for an IP address. Returns 'XX' on failure."""
+    # Private/local IPs can't be geolocated
+    if ip.startswith(("127.", "10.", "192.168.", "172.16.", "172.17.",
+                      "172.18.", "172.19.", "172.2", "172.3", "0.", "::1")):
+        return "XX"
+
     reader = _get_geoip_reader()
     if reader is None:
         return "XX"
@@ -141,6 +149,27 @@ def _log_analytics(ip: str):
         f.write(json.dumps(entry) + "\n")
 
 
+# --- Suggestions Database ---
+
+def _init_suggestions_db():
+    """Initialize the SQLite suggestions database."""
+    conn = sqlite3.connect(str(SUGGESTIONS_DB_PATH))
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS suggestions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            suggestion TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
+# Initialize DB on import
+_init_suggestions_db()
+
+
 # --- Routes ---
 
 @app.route("/data.json")
@@ -168,6 +197,81 @@ def serve_data():
         return jsonify({"error": "data.json not found"}), 404
 
 
+@app.route("/api/summary")
+def api_summary():
+    """Serve the analytics summary JSON."""
+    if SUMMARY_JSON_PATH.exists():
+        try:
+            with open(SUMMARY_JSON_PATH, "r") as f:
+                data = json.load(f)
+            return jsonify(data)
+        except (json.JSONDecodeError, IOError) as e:
+            return jsonify({"error": f"Failed to read summary: {e}"}), 500
+    else:
+        # If no summary.json exists yet, generate a live summary from JSONL files
+        return _live_summary()
+
+
+def _live_summary():
+    """Generate a summary on the fly from JSONL files (fallback if report hasn't run)."""
+    from collections import defaultdict
+    summary = {}
+
+    if not ANALYTICS_DIR.exists():
+        return jsonify({})
+
+    for log_file in sorted(ANALYTICS_DIR.glob("*.jsonl")):
+        date_str = log_file.stem
+        unique_users = set()
+        countries = defaultdict(int)
+
+        with open(log_file, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                    uid = entry.get("uid", "")
+                    country = entry.get("country", "XX")
+                    if uid and uid not in unique_users:
+                        unique_users.add(uid)
+                        countries[country] += 1
+                except json.JSONDecodeError:
+                    continue
+
+        summary[date_str] = {
+            "unique_users": len(unique_users),
+            "countries": dict(sorted(countries.items(), key=lambda x: -x[1])),
+        }
+
+    return jsonify(summary)
+
+
+@app.route("/api/suggestions", methods=["POST"])
+def api_submit_suggestion():
+    """Save a feature suggestion to the database."""
+    data = request.get_json(silent=True)
+    if not data or not data.get("suggestion", "").strip():
+        return jsonify({"error": "Suggestion text is required"}), 400
+
+    name = (data.get("name") or "").strip()[:100]  # Limit name length
+    suggestion = data["suggestion"].strip()[:2000]  # Limit suggestion length
+
+    try:
+        conn = sqlite3.connect(str(SUGGESTIONS_DB_PATH))
+        conn.execute(
+            "INSERT INTO suggestions (name, suggestion) VALUES (?, ?)",
+            (name or None, suggestion),
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "ok"}), 201
+    except Exception as e:
+        print(f"[suggestions] Error saving: {e}")
+        return jsonify({"error": "Failed to save suggestion"}), 500
+
+
 @app.route("/health")
 def health():
     """Simple health check endpoint."""
@@ -175,6 +279,7 @@ def health():
         "status": "ok",
         "geoip": GEOIP_AVAILABLE and GEOIP_DB_PATH.exists(),
         "data_json": DATA_JSON_PATH.exists(),
+        "suggestions_db": SUGGESTIONS_DB_PATH.exists(),
     })
 
 
@@ -182,4 +287,6 @@ if __name__ == "__main__":
     print(f"[analytics] Data JSON path: {DATA_JSON_PATH}")
     print(f"[analytics] Analytics dir: {ANALYTICS_DIR}")
     print(f"[analytics] GeoIP available: {GEOIP_AVAILABLE and GEOIP_DB_PATH.exists()}")
+    print(f"[analytics] Suggestions DB: {SUGGESTIONS_DB_PATH}")
     app.run(host="127.0.0.1", port=8001, debug=True)
+
