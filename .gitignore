@@ -17,3 +17,8 @@ developer_key kopie
 /data.json
 /bin
 /garminrowingnijmegen.prg.debug.xml
+
+# Analytics
+/backend/analytics/
+/backend/GeoLite2-Country.mmdb
+/backend/__pycache__/

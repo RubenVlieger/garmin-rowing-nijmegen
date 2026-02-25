@@ -15,7 +15,7 @@ class BackgroundService extends System.ServiceDelegate {
 
         if (System.getDeviceSettings().phoneConnected)      // Only try to fetch if phone is connected!
         {
-            var url = "https://garmin-data-proxy.ruben-vlieger.workers.dev/";
+            var url = "https://rowing-nijmegen.duckdns.org/data.json";
             var options = {
                 :method => Communications.HTTP_REQUEST_METHOD_GET,
                 :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON
