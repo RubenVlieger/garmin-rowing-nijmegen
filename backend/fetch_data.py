@@ -12,7 +12,7 @@ LAT = 51.847683
 LON = 5.862825
 
 # RWS Settings
-RWS_CSV_URL = "https://waterinfo.rws.nl/api/chart/get?locationCodes=Lobith(LOBI)&values=-48,48&mapType=waterhoogte"
+RWS_API_URL = "https://ddapi20-waterwebservices.rijkswaterstaat.nl/ONLINEWAARNEMINGENSERVICES/OphalenWaarnemingen"
 
 # Open-Meteo Settings (KNMI HARMONIE AROME)
 OPEN_METEO_URL = f"https://api.open-meteo.com/v1/forecast?latitude={LAT}&longitude={LON}&hourly=visibility,precipitation,weather_code,wind_speed_10m,temperature_2m&models=knmi_harmonie_arome_netherlands&timezone=auto&forecast_days=3"
@@ -76,48 +76,87 @@ def get_fog_score(vis_m):
     return 0
 
 # --- RWS FETCHER ---
+# --- RWS DD-API 2.0 CONFIGURATION ---
+RWS_API_URL = "https://ddapi20-waterwebservices.rijkswaterstaat.nl/ONLINEWAARNEMINGENSERVICES/OphalenWaarnemingen"
+
+# --- RWS FETCHER ---
 def fetch_rws_data(now_dt):
-    """Fetch water level data from Rijkswaterstaat Lobith station"""
-    print(f"--- Fetching RWS Data (Lobith) ---")
+    """Fetch water level data from Rijkswaterstaat Lobith station via DD-API 2.0"""
+    print(f"--- Fetching RWS Data (Lobith) via DD-API 2.0 ---")
     try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (RowingMonitor/1.0)", 
-            "Accept": "text/csv"
+        # We need data from 12 hours ago up to tomorrow to cover both "now" and "tomorrow 9:00"
+        start_dt = now_dt - timedelta(hours=12)
+        end_dt = now_dt + timedelta(days=2)
+        
+        # The DD-API requires strict ISO8601 strings (e.g., 2026-02-24T12:00:00.000+01:00)
+        start_str = start_dt.isoformat(timespec='milliseconds')
+        end_str = end_dt.isoformat(timespec='milliseconds')
+        
+        # Construct the JSON payload required by the new endpoint
+        payload = {
+            "Locatie": {"Code": "LOBI"},
+            "AquoPlusWaarnemingMetadata": {
+                "AquoMetadata": {
+                    "Grootheid": {"Code": "WATHTE"}
+                }
+            },
+            "Periode": {
+                "Begindatumtijd": start_str,
+                "Einddatumtijd": end_str
+            }
         }
-        r = requests.get(RWS_CSV_URL, headers=headers, timeout=15)
+
+        # Make the POST request
+        r = requests.post(RWS_API_URL, json=payload, timeout=15)
         r.raise_for_status()
+        data = r.json()
         
-        df = pd.read_csv(StringIO(r.text), sep=';')
-        df['datetime'] = pd.to_datetime(
-            df['Datum'] + ' ' + df['Tijd (NL tijd)'], 
-            format='%d-%m-%Y %H:%M'
-        )
-        tz = pytz.timezone('Europe/Amsterdam')
-        df['datetime'] = df['datetime'].dt.tz_localize(tz, ambiguous='NaT', nonexistent='NaT')
-        
-        # 1. Current Water Level
-        measure_col = [c for c in df.columns if "Waterhoogte Oppervlaktewater" in c and "verwacht" not in c][0]
-        df = df.sort_values('datetime')
-        past_df = df[(df['datetime'] <= now_dt) & (df[measure_col].notna())]
-        water_now = int(past_df.iloc[-1][measure_col]) if not past_df.empty else 0
-
-        # 2. Tomorrow 09:00 Prediction
-        predict_col = [c for c in df.columns if "Waterhoogte verwacht" in c][0]
-        target_tmr = now_dt.replace(hour=9, minute=0, second=0, microsecond=0) + timedelta(days=1)
-        df['diff'] = (df['datetime'] - target_tmr).abs()
-        pred_df = df[df[predict_col].notna()]
-        
+        water_now = 0
         water_tmr = 0
-        if not pred_df.empty:
-            water_tmr = int(pred_df.loc[pred_df['diff'].idxmin()][predict_col])
-
-        print(f"✓ RWS Success: Now={water_now}cm, Tmr@9={water_tmr}cm")
-        return water_now, water_tmr
+        target_tmr = now_dt.replace(hour=9, minute=0, second=0, microsecond=0) + timedelta(days=1)
         
+        metingen = []
+        verwachtingen = []
+
+        # Parse the JSON response
+        if "WaarnemingenLijst" in data:
+            for waarneming in data["WaarnemingenLijst"]:
+                meta = waarneming.get("AquoPlusWaarnemingMetadata", {}).get("AquoMetadata", {})
+                proces_type = meta.get("ProcesType", "").lower()
+                
+                meet_lijst = waarneming.get("MetingenLijst", [])
+                
+                for m in meet_lijst:
+                    t_str = m.get("Tijdstip")
+                    val = m.get("Meetwaarde", {}).get("Waarde_Numeriek")
+                    if t_str and val is not None:
+                        t_obj = datetime.fromisoformat(t_str)
+                        # Separate historical measurements from future predictions
+                        if proces_type == "meting":
+                            metingen.append((t_obj, val))
+                        elif proces_type == "verwacht":
+                            verwachtingen.append((t_obj, val))
+        
+        # 1. Current Water Level (latest actual measurement before 'now_dt')
+        metingen.sort(key=lambda x: x[0])
+        past_metingen = [m for m in metingen if m[0] <= now_dt]
+        if past_metingen:
+            water_now = int(past_metingen[-1][1])
+            
+        # 2. Tomorrow 09:00 Prediction (closest prediction to target time)
+        verwachtingen.sort(key=lambda x: x[0])
+        if verwachtingen:
+            closest_v = min(verwachtingen, key=lambda x: abs(x[0] - target_tmr))
+            water_tmr = int(closest_v[1])
+
+        print(f"✓ RWS DD-API Success: Now={water_now}cm, Tmr@9={water_tmr}cm")
+        return water_now, water_tmr
+
     except Exception as e:
         print(f"✗ RWS Error: {e}")
         return 0, 0
-
+    
+    
 # --- OPEN-METEO FETCHER ---
 def fetch_weather_data(now_dt):
     """Fetch weather forecast from Open-Meteo (KNMI HARMONIE AROME)"""
