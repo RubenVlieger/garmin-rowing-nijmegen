@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  # The Python Flask backend (serves /data.json and /api/*)
+  backend:
+    build: .
+    container_name: garmin_backend
+    restart: always
+    volumes:
+      - .:/app  # Maps the entire folder so data.json and sqlite DB persist
+    expose:
+      - "8001"
+    command: ["gunicorn", "-b", "0.0.0.0:8001", "-w", "2", "--chdir", "backend", "analytics_server:app"]
+
+  # The Python Scheduler (replaces OS cron)
+  scheduler:
+    build: .
+    container_name: garmin_scheduler
+    restart: always
+    volumes:
+      - .:/app
+    command: ["python", "backend/scheduler.py"]
+    depends_on:
+      - backend
+
+  # Nginx reverse proxy and static file server for the dashboard
+  nginx:
+    image: nginx:alpine
+    container_name: garmin_nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./privacy.md:/usr/share/nginx/privacy.md:ro
+    depends_on:
+      - backend
