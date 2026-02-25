@@ -150,8 +150,7 @@ def _log_analytics(ip: str):
     entry = {
         "ts": int(now),
         "uid": user_hash,
-        "country": country,
-        "_dbg_ip": ip,  # TEMPORARY: remove after diagnosis
+        "country": country
     }
 
     with open(log_file, "a") as f:
