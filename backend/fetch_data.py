@@ -81,34 +81,45 @@ RWS_API_URL = "https://ddapi20-waterwebservices.rijkswaterstaat.nl/ONLINEWAARNEM
 
 # --- RWS FETCHER ---
 def fetch_rws_data(now_dt):
-    """Fetch water level data from Rijkswaterstaat Lobith station via DD-API 2.0"""
+    """Updated fetcher for RWS DD-API 2.0 with strict headers"""
     print(f"--- Fetching RWS Data (Lobith) via DD-API 2.0 ---")
-    try:
-        # We need data from 12 hours ago up to tomorrow to cover both "now" and "tomorrow 9:00"
-        start_dt = now_dt - timedelta(hours=12)
-        end_dt = now_dt + timedelta(days=2)
-        
-        # The DD-API requires strict ISO8601 strings (e.g., 2026-02-24T12:00:00.000+01:00)
-        start_str = start_dt.isoformat(timespec='milliseconds')
-        end_str = end_dt.isoformat(timespec='milliseconds')
-        
-        # Construct the JSON payload required by the new endpoint
-        payload = {
-            "Locatie": {"Code": "LOBI"},
-            "AquoPlusWaarnemingMetadata": {
-                "AquoMetadata": {
-                    "Grootheid": {"Code": "WATHTE"}
-                }
-            },
-            "Periode": {
-                "Begindatumtijd": start_str,
-                "Einddatumtijd": end_str
+    
+    # RWS API expects UTC or very specific Offset strings. 
+    # Let's simplify to a 24-hour window around 'now'.
+    start_dt = now_dt - timedelta(hours=12)
+    end_dt = now_dt + timedelta(days=2)
+    
+    # Format: 2026-02-25T14:00:00.000+01:00
+    start_str = start_dt.strftime('%Y-%m-%dT%H:%M:%S.000+01:00')
+    end_str = end_dt.strftime('%Y-%m-%dT%H:%M:%S.000+01:00')
+    
+    payload = {
+        "Locatie": {"Code": "LOBI"},
+        "AquoPlusWaarnemingMetadata": {
+            "AquoMetadata": {
+                "Grootheid": {"Code": "WATHTE"}
             }
+        },
+        "Periode": {
+            "Begindatumtijd": start_str,
+            "Einddatumtijd": end_str
         }
+    }
 
-        # Make the POST request
-        r = requests.post(RWS_API_URL, json=payload, timeout=15)
-        r.raise_for_status()
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+
+    try:
+        r = requests.post(RWS_API_URL, json=payload, headers=headers, timeout=15)
+        
+        # If we get a 404 or 500, this will show the actual HTML/Error text
+        if r.status_code != 200:
+            print(f"✗ RWS API Error {r.status_code}: {r.text[:200]}")
+            return 0, 0
+
         data = r.json()
         
         water_now = 0
