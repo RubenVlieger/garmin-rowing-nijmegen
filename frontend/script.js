@@ -476,7 +476,7 @@ function setupDisclaimer() {
     const expiryDate = new Date("2026-03-03T23:59:59Z");
     if (new Date() < expiryDate) {
         disclaimer.textContent = "(The number of unique users is lower than current users because people with v1.4 installed cannot be counted right now)";
-        disclaimer.style.display = "inline";
+        disclaimer.style.display = "block";
     }
 }
 

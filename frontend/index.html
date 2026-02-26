@@ -31,9 +31,25 @@
             <h1>Nijmegen<br>Watersport<br>Interface</h1>
             <p class="hero-subtitle">
                 Real-time wind, water &amp; weather from Nijmegen, right on your wrist.
-                <br>
-                <span id="versionDisclaimer" style="font-size: 0.9em; opacity: 0.8; display: none;"></span>
             </p>
+
+            <div class="hero-stats-container">
+                <div class="hero-stats">
+                    <div class="stat-card glass">
+                        <span class="stat-number" id="totalUniqueUsers">—</span>
+                        <span class="stat-label">Unique Users</span>
+                    </div>
+                    <div class="stat-card glass">
+                        <span class="stat-number" id="totalUsers">—</span>
+                        <span class="stat-label">Current Users</span>
+                    </div>
+                    <div class="stat-card glass">
+                        <span class="stat-number" id="totalCountries">—</span>
+                        <span class="stat-label">Countries</span>
+                    </div>
+                </div>
+                <p id="versionDisclaimer" class="version-disclaimer" style="display: none;"></p>
+            </div>
 
             <a href="https://apps.garmin.com/apps/813372f8-1f70-4b68-9f9c-ade7b10ccfa1" target="_blank" rel="noopener"
                 class="cta-btn">
@@ -79,25 +95,19 @@
         </div>
     </section>
 
-    <!-- ====== STATS SECTION ====== -->
-    <section class="section stats-section" id="statsSection">
+    <!-- ====== WORLD MAP ====== -->
+    <section class="section" id="map-section">
         <div class="container">
-            <div class="hero-stats">
-                <div class="stat-card glass">
-                    <span class="stat-number" id="totalUniqueUsers">—</span>
-                    <span class="stat-label">Total Unique Users</span>
-                </div>
-                <div class="stat-card glass">
-                    <span class="stat-number" id="totalUsers">—</span>
-                    <span class="stat-label">Current Users</span>
-                </div>
-                <div class="stat-card glass">
-                    <span class="stat-number" id="totalCountries">—</span>
-                    <span class="stat-label">Countries</span>
-                </div>
+            <div class="section-header">
+                <h2>Users Around the World</h2>
+                <p class="section-desc">Interactive map -> darker red means more users.</p>
+            </div>
+            <div class="map-card glass">
+                <div id="worldMap"></div>
             </div>
         </div>
     </section>
+
 
     <!-- ====== DAILY USERS CHART ====== -->
     <section class="section" id="analytics">
@@ -108,19 +118,6 @@
             </div>
             <div class="chart-card glass">
                 <canvas id="dailyChart"></canvas>
-            </div>
-        </div>
-    </section>
-
-    <!-- ====== WORLD MAP ====== -->
-    <section class="section" id="map-section">
-        <div class="container">
-            <div class="section-header">
-                <h2>Users Around the World</h2>
-                <p class="section-desc">Interactive map -> darker red means more users.</p>
-            </div>
-            <div class="map-card glass">
-                <div id="worldMap"></div>
             </div>
         </div>
     </section>
