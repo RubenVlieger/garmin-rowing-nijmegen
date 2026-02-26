@@ -23,8 +23,8 @@
 </head>
 
 <body>
-    <!-- ====== HERO ====== -->
-    <section class="hero">
+    <!-- ====== HERO INTRO ====== -->
+    <section class="hero" id="heroIntro">
         <div class="hero-bg"></div>
         <div class="hero-content">
             <p class="hero-badge">🚣 Open Source Garmin Watchface</p>
@@ -34,21 +34,6 @@
                 <br>
                 <span id="versionDisclaimer" style="font-size: 0.9em; opacity: 0.8; display: none;"></span>
             </p>
-
-            <div class="hero-stats">
-                <div class="stat-card glass">
-                    <span class="stat-number" id="totalUniqueUsers">—</span>
-                    <span class="stat-label">Total Unique Users</span>
-                </div>
-                <div class="stat-card glass">
-                    <span class="stat-number" id="totalUsers">—</span>
-                    <span class="stat-label">Current Users</span>
-                </div>
-                <div class="stat-card glass">
-                    <span class="stat-number" id="totalCountries">—</span>
-                    <span class="stat-label">Countries</span>
-                </div>
-            </div>
 
             <a href="https://apps.garmin.com/apps/813372f8-1f70-4b68-9f9c-ade7b10ccfa1" target="_blank" rel="noopener"
                 class="cta-btn">
@@ -63,6 +48,54 @@
         <div class="scroll-indicator">
             <span>Scroll</span>
             <div class="scroll-line"></div>
+        </div>
+    </section>
+
+    <!-- ====== WATCH SHOWCASE (scroll-driven) ====== -->
+    <section class="watch-showcase" id="watchShowcase">
+        <div class="watch-sticky">
+            <div class="watch-container" id="watchContainer">
+                <img src="garminempty.png" alt="Garmin Watch Face" class="watch-face" id="watchFace">
+                <!-- Clock overlay rendered by JS -->
+                <div class="clock-overlay" id="clockOverlay">
+                    <div class="clock-date" id="clockDate">26 Feb</div>
+                    <div class="clock-time" id="clockTime">12:05</div>
+                    <div class="clock-day" id="clockDay">THU</div>
+                </div>
+            </div>
+            <p class="watch-caption" id="watchCaption">Your conditions. Your wrist. Real time.</p>
+        </div>
+    </section>
+
+    <!-- ====== COVER IMAGE SECTION ====== -->
+    <section class="cover-section" id="coverSection">
+        <div class="cover-image-wrapper">
+            <img src="coverimage.jpg" alt="Garmin watch on a fallen tree in a forest" class="cover-image"
+                id="coverImage">
+        </div>
+        <div class="cover-overlay">
+            <h2 class="cover-title">On Your Wrist,<br>In the Wild.</h2>
+            <p class="cover-subtitle">Built for rowers. Loved by adventurers.</p>
+        </div>
+    </section>
+
+    <!-- ====== STATS SECTION ====== -->
+    <section class="section stats-section" id="statsSection">
+        <div class="container">
+            <div class="hero-stats">
+                <div class="stat-card glass">
+                    <span class="stat-number" id="totalUniqueUsers">—</span>
+                    <span class="stat-label">Total Unique Users</span>
+                </div>
+                <div class="stat-card glass">
+                    <span class="stat-number" id="totalUsers">—</span>
+                    <span class="stat-label">Current Users</span>
+                </div>
+                <div class="stat-card glass">
+                    <span class="stat-number" id="totalCountries">—</span>
+                    <span class="stat-label">Countries</span>
+                </div>
+            </div>
         </div>
     </section>
 

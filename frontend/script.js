@@ -1,6 +1,7 @@
 /* =============================================
    NWI Dashboard — Interactive Logic
    Chart.js · Leaflet Choropleth · Suggestion Form
+   Scroll-Driven Watch Animation · Live Clock
    ============================================= */
 
 // ---- Country code mappings ----
@@ -108,9 +109,7 @@ async function fetchSummary() {
         if (resSummary.ok) {
             summaryData = await resSummary.json();
 
-            // Ensure we only look at the most recent data (e.g. today or yesterday)
-            // Display the data for the day that has the higher user count among the two latest dates.
-            const sortedDates = Object.keys(summaryData).sort((a, b) => b.localeCompare(a)); // newest first
+            const sortedDates = Object.keys(summaryData).sort((a, b) => b.localeCompare(a));
             const recentDates = sortedDates.slice(0, 2);
 
             let bestDate = null;
@@ -144,7 +143,6 @@ async function fetchSummary() {
 function updateHeroStats() {
     document.getElementById("totalUsers").textContent = totalUsers.toLocaleString();
 
-    // Fallback if the element exists, which it should
     const uniqueEl = document.getElementById("totalUniqueUsers");
     if (uniqueEl) uniqueEl.textContent = totalUniqueUsers.toLocaleString();
 
@@ -161,7 +159,6 @@ function renderDailyChart() {
 
     const ctx = document.getElementById("dailyChart").getContext("2d");
 
-    // Gradient fill
     const gradient = ctx.createLinearGradient(0, 0, 0, 360);
     gradient.addColorStop(0, "rgba(14, 165, 233, 0.35)");
     gradient.addColorStop(1, "rgba(14, 165, 233, 0.0)");
@@ -244,14 +241,12 @@ async function renderWorldMap() {
         zoomControl: true
     });
 
-    // Dark tile layer
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png", {
         attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
         subdomains: "abcd",
         maxZoom: 19
     }).addTo(map);
 
-    // Load world countries TopoJSON
     let topoData;
     try {
         const res = await fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json");
@@ -263,9 +258,6 @@ async function renderWorldMap() {
 
     const geoJson = topojson.feature(topoData, topoData.objects.countries);
 
-    // Fix antimeridian artifacts for Russia (643) and Fiji (242) by converting 
-    // negative longitudes to positive, effectively wrapping them correctly.
-    // For USA (840 - Alaska), convert positive to negative.
     geoJson.features.forEach(feature => {
         if (feature.id === "643" || feature.id === "242" || feature.id === "010") {
             if (feature.geometry.type === "Polygon") {
@@ -295,13 +287,11 @@ async function renderWorldMap() {
         }
     });
 
-    // Determine max user count for color scaling
     const maxCount = Math.max(1, ...Object.values(aggregatedCountries));
 
     function getColor(count) {
         if (!count || count === 0) return "rgba(255,255,255,0.03)";
         const ratio = count / maxCount;
-        // Gradient: light red → dark red
         if (ratio > 0.8) return "#991b1b";
         if (ratio > 0.6) return "#b91c1c";
         if (ratio > 0.4) return "#dc2626";
@@ -364,7 +354,6 @@ function renderCountryList() {
     const grid = document.getElementById("countryGrid");
     grid.innerHTML = "";
 
-    // Filter out XX and sort by count
     const entries = Object.entries(aggregatedCountries)
         .filter(([code]) => code !== "XX")
         .sort((a, b) => b[1] - a[1]);
@@ -402,7 +391,6 @@ function setupGarminEmbed() {
     const fallback = document.getElementById("appFallback");
     if (!iframe || !fallback) return;
 
-    // Most app stores block iframes — show fallback after timeout
     let loaded = false;
     iframe.addEventListener("load", () => { loaded = true; });
 
@@ -413,7 +401,6 @@ function setupGarminEmbed() {
         }
     }, 3000);
 
-    // Also try detecting via Content Security Policy errors
     iframe.addEventListener("error", () => {
         iframe.style.display = "none";
         fallback.classList.add("visible");
@@ -449,10 +436,8 @@ function setupSuggestionForm() {
 
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-            // Show thank-you
             thankYou.classList.add("active");
 
-            // Reset form after delay
             setTimeout(() => {
                 thankYou.classList.remove("active");
                 form.reset();
@@ -488,12 +473,184 @@ function setupDisclaimer() {
     const disclaimer = document.getElementById("versionDisclaimer");
     if (!disclaimer) return;
 
-    // Show disclaimer until March 3rd, 2026
     const expiryDate = new Date("2026-03-03T23:59:59Z");
     if (new Date() < expiryDate) {
         disclaimer.textContent = "(The number of unique users is lower than current users because people with v1.4 installed cannot be counted right now)";
         disclaimer.style.display = "inline";
     }
+}
+
+// ====================================================================
+//  SCROLL-DRIVEN WATCH SHOWCASE — Apple-style animation
+// ====================================================================
+
+// The time when the page loaded — this is the "target" (real) time.
+// The animation starts at (loadTime - 60s) and interpolates to loadTime.
+let pageLoadTime = Date.now();
+
+// Format helpers
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const DAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+
+function formatTime(date) {
+    const h = String(date.getHours()).padStart(2, "0");
+    const m = String(date.getMinutes()).padStart(2, "0");
+    return `${h}:${m}`;
+}
+
+function formatDate(date) {
+    return `${date.getDate()} ${MONTHS[date.getMonth()]}`;
+}
+
+function formatDay(date) {
+    return DAYS[date.getDay()];
+}
+
+/**
+ * Interpolate between two timestamps.
+ * progress: 0 → startMs, 1 → endMs
+ */
+function interpolateTime(startMs, endMs, progress) {
+    const clamped = Math.max(0, Math.min(1, progress));
+    return startMs + (endMs - startMs) * clamped;
+}
+
+function setupWatchShowcase() {
+    const showcase = document.getElementById("watchShowcase");
+    const container = document.getElementById("watchContainer");
+    const overlay = document.getElementById("clockOverlay");
+    const caption = document.getElementById("watchCaption");
+    const clockTime = document.getElementById("clockTime");
+    const clockDate = document.getElementById("clockDate");
+    const clockDay = document.getElementById("clockDay");
+
+    if (!showcase || !container) return;
+
+    // Ease function for a smoother feel (ease-out cubic)
+    function easeOutCubic(t) {
+        return 1 - Math.pow(1 - t, 3);
+    }
+
+    let ticking = false;
+
+    function onScroll() {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(() => {
+            updateWatch();
+            ticking = false;
+        });
+    }
+
+    function updateWatch() {
+        const rect = showcase.getBoundingClientRect();
+        const showcaseHeight = showcase.offsetHeight;
+        const viewportHeight = window.innerHeight;
+
+        // How far we have scrolled into the showcase section
+        // rect.top starts positive (below viewport) → goes negative (scrolled past)
+        // progress: 0 = showcase just entering viewport, 1 = fully scrolled through
+        const scrolled = -rect.top;
+        const totalScrollable = showcaseHeight - viewportHeight;
+        const rawProgress = scrolled / totalScrollable;
+        const progress = Math.max(0, Math.min(1, rawProgress));
+
+        // ---- Watch scale & opacity ----
+        // Phase 1 (0 → 0.4): fade in and scale up
+        // Phase 2 (0.4 → 0.7): fully visible, time animates
+        // Phase 3 (0.7 → 1.0): still visible, caption fades in
+        const scaleProgress = easeOutCubic(Math.min(1, progress / 0.4));
+        const scale = 0.4 + scaleProgress * 0.6; // 0.4 → 1.0
+        const opacity = Math.min(1, progress / 0.25); // fade in during first 25%
+
+        container.style.transform = `scale(${scale})`;
+        container.style.opacity = opacity;
+
+        // ---- Clock overlay ----
+        const clockFadeStart = 0.2;
+        const clockFadeEnd = 0.35;
+        const clockOpacity = Math.max(0, Math.min(1, (progress - clockFadeStart) / (clockFadeEnd - clockFadeStart)));
+        if (clockOpacity > 0) {
+            overlay.classList.add("visible");
+            overlay.style.opacity = clockOpacity;
+        } else {
+            overlay.classList.remove("visible");
+            overlay.style.opacity = 0;
+        }
+
+        // ---- Time interpolation ----
+        // Time range: from (now - 60s) to (now)
+        // The "now" updates in real time so the clock is always live once fully scrolled
+        const now = Date.now();
+        const startTime = now - 60000; // 1 minute ago
+        const endTime = now;
+
+        // Map the progress (with a focus on the 0.2 → 0.8 range for the time animation)
+        const timeProgress = Math.max(0, Math.min(1, (progress - 0.2) / 0.6));
+        const easedTimeProgress = easeOutCubic(timeProgress);
+        const displayMs = interpolateTime(startTime, endTime, easedTimeProgress);
+        const displayDate = new Date(displayMs);
+
+        clockTime.textContent = formatTime(displayDate);
+        clockDate.textContent = formatDate(displayDate);
+        clockDay.textContent = formatDay(displayDate);
+
+        // ---- Caption ----
+        if (progress > 0.7) {
+            caption.classList.add("visible");
+        } else {
+            caption.classList.remove("visible");
+        }
+
+        // ---- Watch glow effect based on progress ----
+        const glowIntensity = Math.min(1, progress / 0.5);
+        const face = document.getElementById("watchFace");
+        if (face) {
+            face.style.boxShadow = `
+                0 0 ${80 * glowIntensity}px rgba(14, 165, 233, ${0.15 * glowIntensity}),
+                0 ${20 * glowIntensity}px ${60 * glowIntensity}px rgba(0, 0, 0, ${0.5 * glowIntensity}),
+                0 0 0 1px rgba(255, 255, 255, ${0.06 * glowIntensity})
+            `;
+        }
+    }
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    // Initial call
+    updateWatch();
+}
+
+// ---- Cover Image Observer ----
+function setupCoverSection() {
+    const cover = document.getElementById("coverSection");
+    if (!cover) return;
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                cover.classList.add("in-view");
+            }
+        });
+    }, { threshold: 0.2 });
+
+    observer.observe(cover);
+}
+
+// ---- Live Clock Ticker (updates every second for smooth clock) ----
+function setupLiveClock() {
+    // The scroll handler already updates the clock in real time based on Date.now(),
+    // but we need to trigger re-renders even when the user isn't scrolling.
+    // This fires a synthetic scroll-update every second.
+    setInterval(() => {
+        const showcase = document.getElementById("watchShowcase");
+        if (!showcase) return;
+
+        const rect = showcase.getBoundingClientRect();
+        // Only update if the watch showcase is currently in view
+        if (rect.top < window.innerHeight && rect.bottom > 0) {
+            // Trigger the scroll handler
+            window.dispatchEvent(new Event("scroll"));
+        }
+    }, 1000);
 }
 
 // ---- Initialization ----
@@ -502,6 +659,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     setupGarminEmbed();
     setupSuggestionForm();
     setupDisclaimer();
+    setupWatchShowcase();
+    setupCoverSection();
+    setupLiveClock();
 
     await fetchSummary();
     updateHeroStats();
