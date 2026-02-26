@@ -96,35 +96,46 @@ function countryFlag(code) {
 let summaryData = null;
 let aggregatedCountries = {};  // { "NL": 35, "DE": 5, ... }
 let totalUsers = 0;
+let totalUniqueUsers = 0;
 
 async function fetchSummary() {
     try {
-        const res = await fetch("/api/summary");
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        summaryData = await res.json();
+        const [resSummary, resTotal] = await Promise.all([
+            fetch("/api/summary"),
+            fetch("/api/total_users").catch(() => null)
+        ]);
 
-        // Ensure we only look at the most recent data (e.g. today or yesterday)
-        // Display the data for the day that has the higher user count among the two latest dates.
-        const sortedDates = Object.keys(summaryData).sort((a, b) => b.localeCompare(a)); // newest first
-        const recentDates = sortedDates.slice(0, 2);
+        if (resSummary.ok) {
+            summaryData = await resSummary.json();
 
-        let bestDate = null;
-        totalUsers = -1;
+            // Ensure we only look at the most recent data (e.g. today or yesterday)
+            // Display the data for the day that has the higher user count among the two latest dates.
+            const sortedDates = Object.keys(summaryData).sort((a, b) => b.localeCompare(a)); // newest first
+            const recentDates = sortedDates.slice(0, 2);
 
-        for (const date of recentDates) {
-            const users = summaryData[date].unique_users || 0;
-            if (users > totalUsers) {
-                totalUsers = users;
-                bestDate = date;
+            let bestDate = null;
+            totalUsers = -1;
+
+            for (const date of recentDates) {
+                const users = summaryData[date].unique_users || 0;
+                if (users > totalUsers) {
+                    totalUsers = users;
+                    bestDate = date;
+                }
             }
+
+            if (totalUsers === -1) totalUsers = 0;
+            aggregatedCountries = bestDate && summaryData[bestDate].countries ? { ...summaryData[bestDate].countries } : {};
         }
 
-        if (totalUsers === -1) totalUsers = 0;
-        aggregatedCountries = bestDate && summaryData[bestDate].countries ? { ...summaryData[bestDate].countries } : {};
+        if (resTotal && resTotal.ok) {
+            const data = await resTotal.json();
+            totalUniqueUsers = data.total_users || 0;
+        }
 
         return summaryData;
     } catch (err) {
-        console.warn("Failed to fetch summary:", err);
+        console.warn("Failed to fetch data:", err);
         return null;
     }
 }
@@ -132,6 +143,11 @@ async function fetchSummary() {
 // ---- Hero Stats ----
 function updateHeroStats() {
     document.getElementById("totalUsers").textContent = totalUsers.toLocaleString();
+
+    // Fallback if the element exists, which it should
+    const uniqueEl = document.getElementById("totalUniqueUsers");
+    if (uniqueEl) uniqueEl.textContent = totalUniqueUsers.toLocaleString();
+
     const uniqueCountries = Object.keys(aggregatedCountries).filter(c => c !== "XX").length;
     document.getElementById("totalCountries").textContent = uniqueCountries.toString();
 }
@@ -246,6 +262,38 @@ async function renderWorldMap() {
     }
 
     const geoJson = topojson.feature(topoData, topoData.objects.countries);
+
+    // Fix antimeridian artifacts for Russia (643) and Fiji (242) by converting 
+    // negative longitudes to positive, effectively wrapping them correctly.
+    // For USA (840 - Alaska), convert positive to negative.
+    geoJson.features.forEach(feature => {
+        if (feature.id === "643" || feature.id === "242" || feature.id === "010") {
+            if (feature.geometry.type === "Polygon") {
+                feature.geometry.coordinates.forEach(ring => {
+                    ring.forEach(coord => { if (coord[0] < 0) coord[0] += 360; });
+                });
+            } else if (feature.geometry.type === "MultiPolygon") {
+                feature.geometry.coordinates.forEach(poly => {
+                    poly.forEach(ring => {
+                        ring.forEach(coord => { if (coord[0] < 0) coord[0] += 360; });
+                    });
+                });
+            }
+        }
+        if (feature.id === "840") {
+            if (feature.geometry.type === "Polygon") {
+                feature.geometry.coordinates.forEach(ring => {
+                    ring.forEach(coord => { if (coord[0] > 0) coord[0] -= 360; });
+                });
+            } else if (feature.geometry.type === "MultiPolygon") {
+                feature.geometry.coordinates.forEach(poly => {
+                    poly.forEach(ring => {
+                        ring.forEach(coord => { if (coord[0] > 0) coord[0] -= 360; });
+                    });
+                });
+            }
+        }
+    });
 
     // Determine max user count for color scaling
     const maxCount = Math.max(1, ...Object.values(aggregatedCountries));
