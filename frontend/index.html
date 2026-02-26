@@ -27,9 +27,13 @@
     <section class="hero">
         <div class="hero-bg"></div>
         <div class="hero-content">
-            <p class="hero-badge">🚣 Open Source Garmin Watchface</p>
+            <p class="hero-badge">Open Source Garmin Watchface</p>
             <h1>Nijmegen<br>Watersport<br>Interface</h1>
-            <p class="hero-subtitle">Real-time wind, water &amp; weather — right on your wrist.</p>
+            <p class="hero-subtitle">
+                Real-time wind, water &amp; weather from Nijmegen, right on your wrist.
+                <br>
+                <span id="versionDisclaimer" style="font-size: 0.9em; opacity: 0.8; display: none;"></span>
+            </p>
 
             <div class="hero-stats">
                 <div class="stat-card glass">
@@ -67,7 +71,7 @@
         <div class="container">
             <div class="section-header">
                 <h2>Daily Active Users</h2>
-                <p class="section-desc">Unique user sessions per day since tracking began.</p>
+                <p class="section-desc">Number of unique users per day since counting began.</p>
             </div>
             <div class="chart-card glass">
                 <canvas id="dailyChart"></canvas>
@@ -80,7 +84,7 @@
         <div class="container">
             <div class="section-header">
                 <h2>Users Around the World</h2>
-                <p class="section-desc">Interactive map — darker red means more users.</p>
+                <p class="section-desc">Interactive map -> darker red means more users.</p>
             </div>
             <div class="map-card glass">
                 <div id="worldMap"></div>
@@ -106,7 +110,7 @@
         <div class="container">
             <div class="section-header">
                 <h2>Get It On Your Wrist</h2>
-                <p class="section-desc">Free on the Garmin Connect IQ Store.</p>
+                <p class="section-desc">Free on the Garmin Connect IQ Store. </p>
             </div>
             <div class="app-embed-card glass">
                 <div class="app-embed-inner">
@@ -117,7 +121,8 @@
                     <div class="app-fallback" id="appFallback">
                         <div class="app-fallback-icon">⌚</div>
                         <h3>Nijmegen Watersport Interface</h3>
-                        <p>Wind, water levels, precipitation &amp; more — optimized for rowers in Nijmegen.</p>
+                        <p>Wind, water levels, fog levels, precipitation &amp; more, optimized for water sport
+                            enthusiasts in Nijmegen.</p>
                         <a href="https://apps.garmin.com/apps/813372f8-1f70-4b68-9f9c-ade7b10ccfa1" target="_blank"
                             rel="noopener" class="cta-btn cta-btn-sm">
                             View on Garmin Connect IQ →
@@ -133,7 +138,7 @@
         <div class="container">
             <div class="section-header">
                 <h2>Feature Suggestions</h2>
-                <p class="section-desc">Got an idea? I'd love to hear it.</p>
+                <p class="section-desc">Got an idea or a compliment for me? I'd love to hear it.</p>
             </div>
             <div class="form-card glass">
                 <form id="suggestionForm" autocomplete="off">
@@ -142,7 +147,7 @@
                         <input type="text" id="sugName" name="name" placeholder="Your name">
                     </div>
                     <div class="form-group">
-                        <label for="sugText">Your Idea</label>
+                        <label for="sugText">Your idea or compliment</label>
                         <textarea id="sugText" name="suggestion" placeholder="I think it would be cool if..." required
                             rows="4"></textarea>
                     </div>
@@ -166,7 +171,7 @@
     <footer class="footer">
         <div class="container">
             <p>
-                Built with ❤️ for Nijmegen rowers ·
+                Built by Ruben Vlieger·
                 <a href="https://github.com/RubenVlieger/garmin-rowing-nijmegen" target="_blank"
                     rel="noopener">GitHub</a> ·
                 <a href="privacy.html" target="_blank">Privacy</a> ·

@@ -483,11 +483,25 @@ function setupScrollReveal() {
     sections.forEach(s => observer.observe(s));
 }
 
+// ---- Expiry Disclaimer ----
+function setupDisclaimer() {
+    const disclaimer = document.getElementById("versionDisclaimer");
+    if (!disclaimer) return;
+
+    // Show disclaimer until March 3rd, 2026
+    const expiryDate = new Date("2026-03-03T23:59:59Z");
+    if (new Date() < expiryDate) {
+        disclaimer.textContent = "(The total unique number of users is currently lower than current users because there are a lot of users with version 1.4 installed which cannot be counted right now)";
+        disclaimer.style.display = "inline";
+    }
+}
+
 // ---- Initialization ----
 document.addEventListener("DOMContentLoaded", async () => {
     setupScrollReveal();
     setupGarminEmbed();
     setupSuggestionForm();
+    setupDisclaimer();
 
     await fetchSummary();
     updateHeroStats();
