@@ -1,23 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nijmegen Watersport Interface | NWI</title>
-    <meta name="description" content="Real-time rowing conditions for Nijmegen — wind, water levels, and weather on your Garmin watch.">
+    <meta name="description"
+        content="Real-time rowing conditions for Nijmegen — wind, water levels, and weather on your Garmin watch.">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
 
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 
     <!-- App CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <!-- ====== HERO ====== -->
     <section class="hero">
@@ -30,7 +34,7 @@
             <div class="hero-stats">
                 <div class="stat-card glass">
                     <span class="stat-number" id="totalUsers">—</span>
-                    <span class="stat-label">Total User Sessions</span>
+                    <span class="stat-label">Current Users</span>
                 </div>
                 <div class="stat-card glass">
                     <span class="stat-number" id="totalCountries">—</span>
@@ -38,10 +42,13 @@
                 </div>
             </div>
 
-            <a href="https://apps.garmin.com/apps/813372f8-1f70-4b68-9f9c-ade7b10ccfa1"
-               target="_blank" rel="noopener"
-               class="cta-btn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <a href="https://apps.garmin.com/apps/813372f8-1f70-4b68-9f9c-ade7b10ccfa1" target="_blank" rel="noopener"
+                class="cta-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                </svg>
                 Get it on Garmin Connect IQ
             </a>
         </div>
@@ -82,7 +89,7 @@
         <div class="container">
             <div class="section-header">
                 <h2>User Distribution</h2>
-                <p class="section-desc">Users by country, aggregated across all days.</p>
+                <p class="section-desc">Active users by country.</p>
             </div>
             <div class="country-grid" id="countryGrid">
                 <div class="country-loading">Loading data...</div>
@@ -99,20 +106,16 @@
             </div>
             <div class="app-embed-card glass">
                 <div class="app-embed-inner">
-                    <iframe
-                        id="garminIframe"
-                        src="https://apps.garmin.com/apps/813372f8-1f70-4b68-9f9c-ade7b10ccfa1"
-                        title="Garmin Connect IQ Store"
-                        loading="lazy"
-                        sandbox="allow-scripts allow-same-origin allow-popups"
-                    ></iframe>
+                    <iframe id="garminIframe" src="https://apps.garmin.com/apps/813372f8-1f70-4b68-9f9c-ade7b10ccfa1"
+                        title="Garmin Connect IQ Store" loading="lazy"
+                        sandbox="allow-scripts allow-same-origin allow-popups"></iframe>
                     <!-- Fallback shown if iframe fails -->
                     <div class="app-fallback" id="appFallback">
                         <div class="app-fallback-icon">⌚</div>
                         <h3>Nijmegen Watersport Interface</h3>
                         <p>Wind, water levels, precipitation &amp; more — optimized for rowers in Nijmegen.</p>
-                        <a href="https://apps.garmin.com/apps/813372f8-1f70-4b68-9f9c-ade7b10ccfa1"
-                           target="_blank" rel="noopener" class="cta-btn cta-btn-sm">
+                        <a href="https://apps.garmin.com/apps/813372f8-1f70-4b68-9f9c-ade7b10ccfa1" target="_blank"
+                            rel="noopener" class="cta-btn cta-btn-sm">
                             View on Garmin Connect IQ →
                         </a>
                     </div>
@@ -136,7 +139,8 @@
                     </div>
                     <div class="form-group">
                         <label for="sugText">Your Idea</label>
-                        <textarea id="sugText" name="suggestion" placeholder="I think it would be cool if..." required rows="4"></textarea>
+                        <textarea id="sugText" name="suggestion" placeholder="I think it would be cool if..." required
+                            rows="4"></textarea>
                     </div>
                     <button type="submit" class="submit-btn" id="submitBtn">
                         <span class="btn-text">Submit Suggestion</span>
@@ -159,7 +163,8 @@
         <div class="container">
             <p>
                 Built with ❤️ for Nijmegen rowers ·
-                <a href="https://github.com/RubenVlieger/garmin-rowing-nijmegen" target="_blank" rel="noopener">GitHub</a> ·
+                <a href="https://github.com/RubenVlieger/garmin-rowing-nijmegen" target="_blank"
+                    rel="noopener">GitHub</a> ·
                 <a href="privacy.html" target="_blank">Privacy</a> ·
                 <a href="mailto:ruben.vlieger@ru.nl">Contact</a>
             </p>
@@ -169,8 +174,9 @@
     <!-- ====== SCRIPTS ====== -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
     <script src="script.js"></script>
 </body>
+
 </html>

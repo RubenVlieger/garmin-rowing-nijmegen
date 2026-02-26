@@ -23,6 +23,12 @@ from pathlib import Path
 
 from flask import Flask, request, send_file, jsonify
 
+try:
+    from analytics_report import generate_report
+except ImportError:
+    generate_report = None
+
+
 # Optional: GeoIP2 for country lookup
 try:
     import geoip2.database
@@ -36,6 +42,7 @@ DATA_JSON_PATH = BASE_DIR.parent / "data.json"
 ANALYTICS_DIR = BASE_DIR / "analytics"
 GEOIP_DB_PATH = BASE_DIR / "GeoLite2-Country.mmdb"
 SUGGESTIONS_DB_PATH = BASE_DIR / "suggestions.db"
+USERS_DB_PATH = BASE_DIR / "users.db"
 SUMMARY_JSON_PATH = ANALYTICS_DIR / "summary.json"
 
 # How often the same user can be logged (seconds) — matches Garmin's hourly interval
@@ -126,6 +133,7 @@ def _log_analytics(ip: str):
     
     # 1. Grab the UID passed from the Garmin watch
     device_uid = request.args.get("uid")
+    is_real_uid = bool(device_uid)
     
     # Fallback to IP hashing ONLY if it's accessed via a normal web browser
     if not device_uid:
@@ -157,6 +165,17 @@ def _log_analytics(ip: str):
     with open(log_file, "a") as f:
         f.write(json.dumps(entry) + "\n")
 
+    # Log to unique users db only if it's a real device UID from garmin watch
+    if is_real_uid:
+        try:
+            conn = sqlite3.connect(str(USERS_DB_PATH))
+            conn.execute("INSERT OR IGNORE INTO unique_users (uid) VALUES (?)", (device_uid,))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f"[analytics] Error saving real user id: {e}")
+
+
 
 # --- Suggestions Database ---
 
@@ -177,6 +196,20 @@ def _init_suggestions_db():
 
 # Initialize DB on import
 _init_suggestions_db()
+
+def _init_users_db():
+    """Initialize the SQLite unique users database."""
+    conn = sqlite3.connect(str(USERS_DB_PATH))
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS unique_users (
+            uid TEXT PRIMARY KEY,
+            first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+_init_users_db()
 
 
 # --- Routes ---
@@ -208,7 +241,13 @@ def serve_data():
 
 @app.route("/api/summary")
 def api_summary():
-    """Serve the analytics summary JSON."""
+    """Serve the analytics summary JSON, regenerating it on the fly."""
+    if generate_report:
+        try:
+            generate_report(max_days=30)
+        except Exception as e:
+            print(f"[analytics] Error generating summary report: {e}")
+            
     if SUMMARY_JSON_PATH.exists():
         try:
             with open(SUMMARY_JSON_PATH, "r") as f:
@@ -255,6 +294,20 @@ def _live_summary():
         }
 
     return jsonify(summary)
+
+@app.route("/api/total_users")
+def api_total_users():
+    """Return the total number of unique users tracked in the users.db."""
+    try:
+        conn = sqlite3.connect(str(USERS_DB_PATH))
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM unique_users")
+        count = cursor.fetchone()[0]
+        conn.close()
+        return jsonify({"total_users": count})
+    except Exception as e:
+        print(f"[analytics] Error retrieving total unique users: {e}")
+        return jsonify({"total_users": 0}), 500
 
 
 @app.route("/api/suggestions", methods=["POST"])

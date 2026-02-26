@@ -103,15 +103,24 @@ async function fetchSummary() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         summaryData = await res.json();
 
-        // Aggregate countries across all days and compute total users
-        aggregatedCountries = {};
-        totalUsers = 0;
-        for (const [date, stats] of Object.entries(summaryData)) {
-            totalUsers += stats.unique_users || 0;
-            for (const [country, count] of Object.entries(stats.countries || {})) {
-                aggregatedCountries[country] = (aggregatedCountries[country] || 0) + count;
+        // Ensure we only look at the most recent data (e.g. today or yesterday)
+        // Display the data for the day that has the higher user count among the two latest dates.
+        const sortedDates = Object.keys(summaryData).sort((a, b) => b.localeCompare(a)); // newest first
+        const recentDates = sortedDates.slice(0, 2);
+
+        let bestDate = null;
+        totalUsers = -1;
+
+        for (const date of recentDates) {
+            const users = summaryData[date].unique_users || 0;
+            if (users > totalUsers) {
+                totalUsers = users;
+                bestDate = date;
             }
         }
+
+        if (totalUsers === -1) totalUsers = 0;
+        aggregatedCountries = bestDate && summaryData[bestDate].countries ? { ...summaryData[bestDate].countries } : {};
 
         return summaryData;
     } catch (err) {
