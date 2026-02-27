@@ -1,6 +1,7 @@
 # Nijmegen Watersport Interface (NWI)
 
 This is a custom Garmin Connect watch face built for rowers and water sports enthusiasts in Nijmegen. It provides real-time, hyper-local environmental data directly on your wrist, helping you decide if it's nice to hit the water.
+See how many people are gladly using the watchface, and other statistics: https://rowing-nijmegen.duckdns.org/
 
 <img src="resources/coverimage.jpg" width="75%">
 # Why this exists
@@ -42,6 +43,9 @@ Water Level: Current height at Lobith (cm) with a trend indicator (`^` rising, `
 
 Status Indicators: "SUN" or "FOG" alerts based on visibility and cloud cover. currently sun and fog detection is not the best :( 
 
+
+<img src="resources/fotokaart.jpg" width="100%">
+Screenshot of analytics webpage viewable at: https://rowing-nijmegen.duckdns.org 
 
 # Server Architecture & Web Dashboard
 
